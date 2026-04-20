@@ -1,32 +1,33 @@
+pub mod factories;
+
+use bon::Builder;
 use sea_orm::{DatabaseConnection, DatabaseTransaction, TransactionTrait as _};
 use std::sync::Arc;
 
-use crate::{
-    application::{
-        db::{
-            errors::{BeginError, CommitError, RollbackError, TransactionNotBegin},
-            tx_manager::TxManager,
-        },
-        user::interfaces::{UserReader, UserRepo},
+use crate::application::{
+    db::{
+        errors::{BeginError, CommitError, RollbackError, TransactionNotBegin},
+        tx_manager::TxManager,
     },
-    infra::db::{readers::user::SeaOrmUserReader, repos::user::SeaOrmUserRepo},
+    user::interfaces::{UserReader, UserRepo},
 };
+use factories::{FactoryReader, FactoryRepo};
 
-pub struct SeaOrmTxManager {
+#[derive(Builder)]
+pub struct SeaOrmTxManager<UReader, URepo> {
+    #[builder(start_fn)]
     pool: Arc<DatabaseConnection>,
+    #[builder(skip)]
     transaction: Option<DatabaseTransaction>,
+    user_reader_factory: UReader,
+    user_repo_factory: URepo,
 }
 
-impl SeaOrmTxManager {
-    pub const fn new(pool: Arc<DatabaseConnection>) -> Self {
-        Self {
-            pool,
-            transaction: None,
-        }
-    }
-}
-
-impl TxManager for SeaOrmTxManager {
+impl<UReader, URepo> TxManager for SeaOrmTxManager<UReader, URepo>
+where
+    UReader: for<'a> FactoryReader<Res<'a>: UserReader>,
+    URepo: for<'a> FactoryRepo<Res<'a>: UserRepo>,
+{
     async fn begin(&mut self) -> Result<(), BeginError> {
         if self.transaction.is_none() {
             self.transaction = Some(self.pool.begin().await?);
@@ -49,12 +50,13 @@ impl TxManager for SeaOrmTxManager {
     }
 
     fn user_reader(&self) -> impl UserReader + Send {
-        SeaOrmUserReader::new(self.pool.as_ref())
+        self.user_reader_factory.factory(self.pool.as_ref())
     }
 
     fn user_repo(&self) -> Result<impl UserRepo + Send, TransactionNotBegin> {
-        Ok(SeaOrmUserRepo::new(
-            self.transaction.as_ref().ok_or(TransactionNotBegin)?,
-        ))
+        let Some(transaction) = self.transaction.as_ref() else {
+            return Err(TransactionNotBegin);
+        };
+        Ok(self.user_repo_factory.factory(transaction))
     }
 }

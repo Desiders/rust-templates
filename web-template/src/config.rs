@@ -12,10 +12,33 @@ pub struct Logging {
     pub dirs: Box<str>,
 }
 
+#[derive(Deserialize, Clone)]
+pub struct Database {
+    pub host: Box<str>,
+    pub port: i16,
+    pub user: Box<str>,
+    pub password: Box<str>,
+    pub database: Box<str>,
+}
+
+impl Database {
+    pub fn get_postgres_url(&self) -> String {
+        format!(
+            "postgres://{user}:{password}@{host}:{port}/{database}",
+            user = self.user,
+            password = self.password,
+            host = self.host,
+            port = self.port,
+            database = self.database,
+        )
+    }
+}
+
 #[derive(Deserialize)]
 pub struct Config {
     pub serve: Serve,
     pub logging: Logging,
+    pub database: Database,
 }
 
 #[derive(Error, Debug)]

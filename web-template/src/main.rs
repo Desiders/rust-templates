@@ -4,11 +4,15 @@ use tokio::{net::TcpListener, sync::Notify};
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
-use crate::api::controllers;
+use crate::{
+    api::controllers,
+    infra::db::tx_manager::factories::{DefaultUserReaderFactory, DefaultUserRepoFactory},
+};
 
 mod api;
 mod application;
 mod config;
+mod di;
 mod domain;
 mod infra;
 mod utils;
@@ -29,6 +33,16 @@ async fn main() {
         log_filter = %cfg.logging.dirs,
         "Loaded config",
     );
+
+    let cfg_registry = di::cfg_registry(cfg);
+    let db_registry = di::db_registry(cfg_registry.clone());
+    let tx_manager_registry = di::tx_manager_registry(
+        db_registry,
+        DefaultUserReaderFactory,
+        DefaultUserRepoFactory,
+    );
+    let interactors_registry = di::interactors_registry(cfg_registry);
+    let container = di::init(interactors_registry, tx_manager_registry);
 
     let router = controllers::router();
     let app = router;
