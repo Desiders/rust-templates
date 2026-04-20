@@ -18,3 +18,4 @@ utoipa = "5.4"
 utoipa-axum = "0.2"
 utoipa-rapidoc = { version = "6", features = ["axum"] }
 time = { version = "0.3", features = ["serde-human-readable"] }
+sea-orm = { version = "1.1", features = ["macros", "sqlx-postgres", "runtime-tokio-rustls", "with-time", "with-uuid"] }

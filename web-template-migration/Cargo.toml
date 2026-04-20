@@ -1,0 +1,14 @@
+[package]
+name = "web_template_migration"
+version = "1.6.0"
+edition = "2024"
+rust-version = "1.85.0"
+publish = false
+
+[lib]
+name = "migration"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
+sea-orm-migration = { version = "2.0.0-rc.38", features = ["runtime-tokio-rustls", "sqlx-postgres"] }
