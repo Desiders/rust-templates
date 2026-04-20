@@ -9,6 +9,7 @@ use crate::api::controllers;
 mod api;
 mod config;
 mod domain;
+mod infra;
 mod utils;
 
 #[tokio::main]

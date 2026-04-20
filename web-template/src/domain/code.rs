@@ -39,7 +39,9 @@ impl Display for Code {
 }
 
 mod errors {
-    use crate::domain::code::Code;
+    use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
+
+    use crate::domain::{code::Code, user::exceptions::UserAlreadyExists};
 
     #[allow(unused)]
     pub const UNEXPECTED: Code = Code {
@@ -62,10 +64,12 @@ mod errors {
         };
     }
 
-    use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
     code_entity! {
         JsonRejection => (1001, "Parse JSON error"),
         PathRejection => (1002, "Path error"),
         QueryRejection => (1003, "Query error"),
+    }
+    code_entity! {
+        UserAlreadyExists => (1004, "User already exists"),
     }
 }
