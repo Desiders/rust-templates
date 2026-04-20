@@ -5,7 +5,7 @@ use axum::{
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::domain::code::{Code, IntoCode};
+use crate::domain::code::{entity::Code, interfaces::IntoCode};
 
 #[allow(unused)]
 pub enum Resp<R: Serialize, E: IntoCode> {

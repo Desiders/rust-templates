@@ -7,6 +7,7 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt as _, util::Subscr
 use crate::api::controllers;
 
 mod api;
+mod application;
 mod config;
 mod domain;
 mod infra;
