@@ -1,0 +1,6 @@
+/target
+
+configs/*.toml
+.env
+
+!*.template.*
