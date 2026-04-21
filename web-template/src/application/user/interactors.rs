@@ -1,9 +1,11 @@
-use std::convert::Infallible;
 use tracing::{info, instrument};
 
 use crate::{
     application::{common::interactor::Interactor, db::tx_manager::TxManager},
-    domain::{common::errors::ErrKind, user::entity::User},
+    domain::{
+        common::errors::ErrKind,
+        user::{entities::User, errors::UserAlreadyExists},
+    },
 };
 
 pub struct SaveUser {}
@@ -13,19 +15,19 @@ pub struct SaveUserInput<'a, TxM: TxManager> {
     pub tx_manager: &'a mut TxM,
 }
 
-impl<'a, TxM: TxManager> Interactor<SaveUserInput<'a, TxM>> for SaveUser {
+impl<TxM: TxManager> Interactor<SaveUserInput<'_, TxM>> for &SaveUser {
     type Output = User;
-    type Err = ErrKind<Infallible>;
+    type Err = ErrKind<UserAlreadyExists>;
 
     #[instrument(skip_all)]
     async fn execute(
         self,
-        SaveUserInput { user, tx_manager }: SaveUserInput<'a, TxM>,
+        SaveUserInput { user, tx_manager }: SaveUserInput<'_, TxM>,
     ) -> Result<Self::Output, Self::Err> {
         tx_manager.begin().await?;
 
         let repo = tx_manager.user_repo()?;
-        let user = repo.upsert(user).await?;
+        let user = repo.add(user).await?;
         drop(repo);
 
         tx_manager.commit().await?;

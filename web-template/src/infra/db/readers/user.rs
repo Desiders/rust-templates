@@ -6,7 +6,7 @@ use crate::{
     application::user::interfaces::UserReader,
     domain::{
         common::errors::ErrKind,
-        user::{entity::User, errors::UserNotFound},
+        user::{entities::User, errors::UserNotFound},
     },
     infra::db::models::users,
 };

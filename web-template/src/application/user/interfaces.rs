@@ -1,9 +1,11 @@
 use async_trait::async_trait;
-use std::convert::Infallible;
 
 use crate::domain::{
     common::errors::ErrKind,
-    user::{entity::User, errors::UserNotFound},
+    user::{
+        entities::User,
+        errors::{UserAlreadyExists, UserNotFound},
+    },
 };
 
 #[async_trait]
@@ -13,5 +15,5 @@ pub trait UserReader: Send + Sync {
 
 #[async_trait]
 pub trait UserRepo: Send + Sync {
-    async fn upsert(&self, user: User) -> Result<User, ErrKind<Infallible>>;
+    async fn add(&self, user: User) -> Result<User, ErrKind<UserAlreadyExists>>;
 }

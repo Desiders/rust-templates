@@ -1,10 +1,14 @@
 use serde::Serialize;
-use std::fmt::{self, Display, Formatter};
+use std::{
+    borrow::Cow,
+    fmt::{self, Display, Formatter},
+};
 
 #[derive(Debug, Serialize)]
 pub struct Code {
     pub code: u16,
     pub name: &'static str,
+    pub message: Cow<'static, str>,
 }
 
 impl Display for Code {

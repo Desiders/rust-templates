@@ -1,3 +1,3 @@
 pub mod constants;
-pub mod entity;
+pub mod entities;
 pub mod interfaces;

@@ -3,11 +3,11 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
+use std::borrow::Cow;
 use utoipa::ToSchema;
 
-use crate::domain::code::{entity::Code, interfaces::IntoCode};
+use crate::domain::code::{entities::Code, interfaces::IntoCode};
 
-#[allow(unused)]
 pub enum Resp<R: Serialize, E: IntoCode> {
     Ok(R),
     Err(E),
@@ -66,16 +66,20 @@ pub struct ErrResponse {
     is_success: bool,
     code: u16,
     name: &'static str,
-    message: String,
+    message: Cow<'static, str>,
 }
 
 impl<E: IntoCode> From<E> for ErrResponse {
     fn from(err: E) -> Self {
-        let Code { code, name } = err.into_code();
+        let Code {
+            code,
+            name,
+            message,
+        } = err.into_code();
         Self {
             code,
             name,
-            message: err.to_string(),
+            message,
             is_success: false,
         }
     }

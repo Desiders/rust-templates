@@ -1,10 +1,12 @@
 use async_trait::async_trait;
-use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait as _, sea_query::OnConflict};
-use std::convert::Infallible;
+use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait as _, SqlErr};
 
 use crate::{
     application::user::interfaces::UserRepo,
-    domain::{common::errors::ErrKind, user::entity::User},
+    domain::{
+        common::errors::ErrKind,
+        user::{entities::User, errors::UserAlreadyExists},
+    },
     infra::db::models::users,
 };
 
@@ -20,7 +22,7 @@ impl<'a, Conn> SeaOrmUserRepo<'a, Conn> {
 
 #[async_trait]
 impl<Conn: ConnectionTrait> UserRepo for SeaOrmUserRepo<'_, Conn> {
-    async fn upsert(
+    async fn add(
         &self,
         User {
             id,
@@ -28,29 +30,25 @@ impl<Conn: ConnectionTrait> UserRepo for SeaOrmUserRepo<'_, Conn> {
             created_at,
             updated_at,
         }: User,
-    ) -> Result<User, ErrKind<Infallible>> {
-        use users::{
-            ActiveModel,
-            Column::{Id, UpdatedAt, Username},
-            Entity,
-        };
+    ) -> Result<User, ErrKind<UserAlreadyExists>> {
+        use users::{ActiveModel, Entity};
 
         let model = ActiveModel {
             id: Set(id),
-            username: Set(username),
+            username: Set(username.clone()),
             created_at: Set(created_at),
             updated_at: Set(updated_at),
         };
 
         Entity::insert(model)
-            .on_conflict(
-                OnConflict::column(Id)
-                    .update_columns([Username, UpdatedAt])
-                    .to_owned(),
-            )
             .exec_with_returning(self.conn)
             .await
             .map(Into::into)
-            .map_err(Into::into)
+            .map_err(|err| match err.sql_err() {
+                Some(SqlErr::UniqueConstraintViolation(_)) => {
+                    ErrKind::Expected(UserAlreadyExists { id, username })
+                }
+                _ => ErrKind::Unexpected(err.into()),
+            })
     }
 }

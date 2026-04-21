@@ -1,10 +1,10 @@
 use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
-use std::{convert::Infallible, error::Error};
+use std::convert::Infallible;
 
-use super::{constants::UNEXPECTED, entity::Code};
+use super::{constants::UNEXPECTED, entities::Code};
 use crate::domain::{common::errors::ErrKind, user::errors::UserAlreadyExists};
 
-pub trait IntoCode: Error {
+pub trait IntoCode {
     fn into_code(&self) -> Code;
 }
 
@@ -23,6 +23,12 @@ impl<E: IntoCode> IntoCode for ErrKind<E> {
     }
 }
 
+impl IntoCode for anyhow::Error {
+    fn into_code(&self) -> Code {
+        UNEXPECTED
+    }
+}
+
 macro_rules! code_entity {
         ($($name:ident => ($code:expr, $label:expr)),* $(,)?) => {
             $(
@@ -31,6 +37,7 @@ macro_rules! code_entity {
                         Code {
                             code: $code,
                             name: $label,
+                            message: self.to_string().into(),
                         }
                     }
                 }

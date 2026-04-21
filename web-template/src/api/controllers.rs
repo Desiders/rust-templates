@@ -2,10 +2,12 @@ use axum::Router;
 use utoipa::OpenApi;
 use utoipa_rapidoc::RapiDoc;
 
-pub(super) mod requests;
+use crate::application::db::tx_manager::TxManager;
+
 pub(super) mod responses;
 
 mod healthcheck;
+mod users;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -16,8 +18,9 @@ mod healthcheck;
 )]
 struct Doc;
 
-pub fn router() -> Router {
+pub fn router<TxM: TxManager>() -> Router {
     Router::new()
         .merge(healthcheck::router())
+        .nest("/users", users::router::<TxM>())
         .merge(RapiDoc::with_openapi("/api-docs/openapi.json", Doc::openapi()).path("/docs"))
 }

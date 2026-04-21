@@ -4,7 +4,7 @@ use tokio::{net::TcpListener, sync::Notify};
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
-use crate::api::controllers;
+use crate::{api::controllers, infra::db::tx_manager::SeaOrmTxManager};
 
 mod api;
 mod application;
@@ -13,6 +13,8 @@ mod di;
 mod domain;
 mod infra;
 mod utils;
+
+type TxManager = SeaOrmTxManager;
 
 #[tokio::main]
 async fn main() {
@@ -38,7 +40,7 @@ async fn main() {
     let tx_manager_registry = di::tx_manager_registry(db_registry, tx_manager_factories_registry);
     let container = di::init(interactors_registry, tx_manager_registry);
 
-    let router = controllers::router();
+    let router = controllers::router::<TxManager>();
     let router = froodi::axum::setup_async_default(router, container.clone());
     let app = router;
 
