@@ -30,6 +30,7 @@ pub(super) fn interactors_registry() -> Registry {
         scope(Request) [
             provide(|| Ok(user::interactors::SaveUser {})),
             provide(|| Ok(user::interactors::GetUserById {})),
+            provide(|| Ok(user::interactors::GetUsers {})),
         ]
     }
 }

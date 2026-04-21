@@ -1,7 +1,12 @@
 use tracing::{info, instrument};
 
+use std::convert::Infallible;
+
 use crate::{
-    application::{common::interactor::Interactor, db::tx_manager::TxManager},
+    application::{
+        common::{entities::Pagination, interactor::Interactor},
+        db::tx_manager::TxManager,
+    },
     domain::{
         common::errors::ErrKind,
         user::{
@@ -14,6 +19,7 @@ use uuid::Uuid;
 
 pub struct SaveUser {}
 pub struct GetUserById {}
+pub struct GetUsers {}
 
 pub struct SaveUserInput<'a> {
     pub user: User,
@@ -22,6 +28,11 @@ pub struct SaveUserInput<'a> {
 
 pub struct GetUserByIdInput<'a> {
     pub id: Uuid,
+    pub tx_manager: &'a mut dyn TxManager,
+}
+
+pub struct GetUsersInput<'a> {
+    pub pagination: Pagination,
     pub tx_manager: &'a mut dyn TxManager,
 }
 
@@ -61,5 +72,25 @@ impl Interactor<GetUserByIdInput<'_>> for &GetUserById {
         info!(%user.id, "User received");
 
         Ok(user)
+    }
+}
+
+impl Interactor<GetUsersInput<'_>> for &GetUsers {
+    type Output = Vec<User>;
+    type Err = ErrKind<Infallible>;
+
+    #[instrument(skip_all)]
+    async fn execute(
+        self,
+        GetUsersInput {
+            pagination,
+            tx_manager,
+        }: GetUsersInput<'_>,
+    ) -> Result<Self::Output, Self::Err> {
+        let reader = tx_manager.user_reader();
+        let users = reader.get_all(pagination).await?;
+        info!(count = %users.len(), "Users received");
+
+        Ok(users)
     }
 }

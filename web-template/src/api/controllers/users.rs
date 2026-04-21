@@ -1,6 +1,6 @@
 use axum::{
     Json, Router,
-    extract::Path,
+    extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -13,11 +13,13 @@ use uuid::Uuid;
 use super::responses::base::{ErrResponse, OkResponse, Resp};
 use crate::{
     application::{
-        common::interactor::Interactor,
+        common::{entities::Pagination, interactor::Interactor},
         db::tx_manager::TxManager,
         user::{
             dtos::CreateUser,
-            interactors::{GetUserById, GetUserByIdInput, SaveUser, SaveUserInput},
+            interactors::{
+                GetUserById, GetUserByIdInput, GetUsers, GetUsersInput, SaveUser, SaveUserInput,
+            },
         },
     },
     domain::{common::errors::ErrKind, user::entities::User},
@@ -49,6 +51,37 @@ async fn create(
             error!(%err , "Add user error");
             match err {
                 ErrKind::Expected(_) => (StatusCode::CONFLICT, Resp::Err(err)),
+                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
+            }
+        }
+    }
+}
+
+#[utoipa::path(get, path = "",
+    params(Pagination),
+    responses(
+        (status = StatusCode::OK, body = OkResponse<Vec<User>>, description = "Users received successfully"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+    ),
+)]
+#[instrument(skip_all)]
+async fn get_all(
+    Inject(interactor): Inject<GetUsers>,
+    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    Query(pagination): Query<Pagination>,
+) -> impl IntoResponse {
+    match interactor
+        .execute(GetUsersInput {
+            pagination,
+            tx_manager: tx_manager.as_mut(),
+        })
+        .await
+    {
+        Ok(users) => (StatusCode::OK, Resp::Ok(users)),
+        Err(err) => {
+            error!(%err , "Get users error");
+            match err {
+                ErrKind::Expected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
                 ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
             }
         }
@@ -90,11 +123,11 @@ async fn get_by_id(
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(create, get_by_id))]
+#[openapi(paths(create, get_all, get_by_id))]
 pub(super) struct Doc;
 
 pub(super) fn router() -> Router {
     Router::new()
-        .route("/", post(create))
+        .route("/", post(create).get(get_all))
         .route("/{id}", get(get_by_id))
 }
