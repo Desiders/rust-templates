@@ -26,4 +26,5 @@ pub trait UserReader: Send + Sync {
 #[async_trait]
 pub trait UserRepo: Send + Sync {
     async fn add(&self, user: User) -> Result<User, ErrKind<UserAlreadyExists>>;
+    async fn delete_by_id(&self, id: Uuid) -> Result<(), ErrKind<UserByIdNotFound>>;
 }

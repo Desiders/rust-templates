@@ -1,11 +1,15 @@
 use async_trait::async_trait;
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait as _, SqlErr};
+use uuid::Uuid;
 
 use crate::{
     application::user::interfaces::UserRepo,
     domain::{
         common::errors::ErrKind,
-        user::{entities::User, errors::UserAlreadyExists},
+        user::{
+            entities::User,
+            errors::{UserAlreadyExists, UserByIdNotFound},
+        },
     },
     infra::db::models::users,
 };
@@ -50,5 +54,17 @@ impl<Conn: ConnectionTrait> UserRepo for SeaOrmUserRepo<'_, Conn> {
                 }
                 _ => ErrKind::Unexpected(err.into()),
             })
+    }
+
+    async fn delete_by_id(&self, id: Uuid) -> Result<(), ErrKind<UserByIdNotFound>> {
+        use users::Entity;
+
+        match Entity::delete_by_id(id).exec(self.conn).await {
+            Ok(result) if result.rows_affected == 0 => {
+                Err(ErrKind::Expected(UserByIdNotFound { id }))
+            }
+            Ok(_) => Ok(()),
+            Err(err) => Err(ErrKind::Unexpected(err.into())),
+        }
     }
 }

@@ -18,8 +18,9 @@ use crate::{
         user::{
             dtos::CreateUser,
             interactors::{
-                GetUserById, GetUserByIdInput, GetUserByUsername, GetUserByUsernameInput, GetUsers,
-                GetUsersInput, SaveUser, SaveUserInput,
+                DeleteUserById, DeleteUserByIdInput, GetUserById, GetUserByIdInput,
+                GetUserByUsername, GetUserByUsernameInput, GetUsers, GetUsersInput, SaveUser,
+                SaveUserInput,
             },
         },
     },
@@ -157,13 +158,48 @@ async fn get_by_id(
     }
 }
 
+#[utoipa::path(delete, path = "/{id}",
+    params(
+        ("id" = Uuid, Path, description = "User UUID v7"),
+    ),
+    responses(
+        (status = StatusCode::NO_CONTENT, description = "User deleted successfully"),
+        (status = StatusCode::NOT_FOUND, body = ErrResponse, description = "User not found"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+    ),
+)]
+#[instrument(skip_all)]
+async fn delete_by_id(
+    Inject(interactor): Inject<DeleteUserById>,
+    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+    match interactor
+        .execute(DeleteUserByIdInput {
+            id,
+            tx_manager: tx_manager.as_mut(),
+        })
+        .await
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => {
+            error!(%err , "Delete user by id error");
+            match err {
+                ErrKind::Expected(_) => (StatusCode::NOT_FOUND, Resp::<(), _>::Err(err)),
+                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
+            }
+            .into_response()
+        }
+    }
+}
+
 #[derive(OpenApi)]
-#[openapi(paths(create, get_all, get_by_username, get_by_id))]
+#[openapi(paths(create, get_all, get_by_username, get_by_id, delete_by_id))]
 pub(super) struct Doc;
 
 pub(super) fn router() -> Router {
     Router::new()
         .route("/", post(create).get(get_all))
         .route("/@{username}", get(get_by_username))
-        .route("/{id}", get(get_by_id))
+        .route("/{id}", get(get_by_id).delete(delete_by_id))
 }

@@ -21,6 +21,7 @@ pub struct SaveUser {}
 pub struct GetUserById {}
 pub struct GetUserByUsername {}
 pub struct GetUsers {}
+pub struct DeleteUserById {}
 
 pub struct SaveUserInput<'a> {
     pub user: User,
@@ -39,6 +40,11 @@ pub struct GetUserByUsernameInput<'a> {
 
 pub struct GetUsersInput<'a> {
     pub pagination: Pagination,
+    pub tx_manager: &'a mut dyn TxManager,
+}
+
+pub struct DeleteUserByIdInput<'a> {
+    pub id: Uuid,
     pub tx_manager: &'a mut dyn TxManager,
 }
 
@@ -118,5 +124,27 @@ impl Interactor<GetUsersInput<'_>> for &GetUsers {
         info!(count = %users.len(), "Users received");
 
         Ok(users)
+    }
+}
+
+impl Interactor<DeleteUserByIdInput<'_>> for &DeleteUserById {
+    type Output = ();
+    type Err = ErrKind<UserByIdNotFound>;
+
+    #[instrument(skip_all)]
+    async fn execute(
+        self,
+        DeleteUserByIdInput { id, tx_manager }: DeleteUserByIdInput<'_>,
+    ) -> Result<Self::Output, Self::Err> {
+        tx_manager.begin().await?;
+
+        let repo = tx_manager.user_repo()?;
+        repo.delete_by_id(id).await?;
+        drop(repo);
+
+        tx_manager.commit().await?;
+        info!(%id, "User deleted");
+
+        Ok(())
     }
 }

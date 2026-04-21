@@ -32,6 +32,7 @@ pub(super) fn interactors_registry() -> Registry {
             provide(|| Ok(user::interactors::GetUserById {})),
             provide(|| Ok(user::interactors::GetUserByUsername {})),
             provide(|| Ok(user::interactors::GetUsers {})),
+            provide(|| Ok(user::interactors::DeleteUserById {})),
         ]
     }
 }
