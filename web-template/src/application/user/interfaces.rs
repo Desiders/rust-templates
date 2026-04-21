@@ -8,7 +8,7 @@ use crate::{
         common::errors::ErrKind,
         user::{
             entities::User,
-            errors::{UserAlreadyExists, UserByIdNotFound},
+            errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
         },
     },
 };
@@ -16,6 +16,10 @@ use crate::{
 #[async_trait]
 pub trait UserReader: Send + Sync {
     async fn get_by_id(&self, id: Uuid) -> Result<User, ErrKind<UserByIdNotFound>>;
+    async fn get_by_username(
+        &self,
+        username: String,
+    ) -> Result<User, ErrKind<UserByUsernameNotFound>>;
     async fn get_all(&self, pagination: Pagination) -> Result<Vec<User>, ErrKind<Infallible>>;
 }
 

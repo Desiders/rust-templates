@@ -4,7 +4,7 @@ use std::convert::Infallible;
 use super::{constants::UNEXPECTED, entities::Code};
 use crate::domain::{
     common::errors::ErrKind,
-    user::errors::{UserAlreadyExists, UserByIdNotFound},
+    user::errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
 };
 
 pub trait IntoCode {
@@ -56,4 +56,5 @@ code_entity! {
 code_entity! {
     UserAlreadyExists => 1004,
     UserByIdNotFound => 1005,
+    UserByUsernameNotFound => 1006,
 }

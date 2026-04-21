@@ -11,7 +11,7 @@ use crate::{
         common::errors::ErrKind,
         user::{
             entities::User,
-            errors::{UserAlreadyExists, UserByIdNotFound},
+            errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
         },
     },
 };
@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 pub struct SaveUser {}
 pub struct GetUserById {}
+pub struct GetUserByUsername {}
 pub struct GetUsers {}
 
 pub struct SaveUserInput<'a> {
@@ -28,6 +29,11 @@ pub struct SaveUserInput<'a> {
 
 pub struct GetUserByIdInput<'a> {
     pub id: Uuid,
+    pub tx_manager: &'a mut dyn TxManager,
+}
+
+pub struct GetUserByUsernameInput<'a> {
+    pub username: String,
     pub tx_manager: &'a mut dyn TxManager,
 }
 
@@ -69,6 +75,26 @@ impl Interactor<GetUserByIdInput<'_>> for &GetUserById {
     ) -> Result<Self::Output, Self::Err> {
         let reader = tx_manager.user_reader();
         let user = reader.get_by_id(id).await?;
+        info!(%user.id, "User received");
+
+        Ok(user)
+    }
+}
+
+impl Interactor<GetUserByUsernameInput<'_>> for &GetUserByUsername {
+    type Output = User;
+    type Err = ErrKind<UserByUsernameNotFound>;
+
+    #[instrument(skip_all)]
+    async fn execute(
+        self,
+        GetUserByUsernameInput {
+            username,
+            tx_manager,
+        }: GetUserByUsernameInput<'_>,
+    ) -> Result<Self::Output, Self::Err> {
+        let reader = tx_manager.user_reader();
+        let user = reader.get_by_username(username).await?;
         info!(%user.id, "User received");
 
         Ok(user)

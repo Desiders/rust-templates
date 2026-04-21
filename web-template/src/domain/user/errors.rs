@@ -12,3 +12,9 @@ pub struct UserAlreadyExists {
 pub struct UserByIdNotFound {
     pub id: Uuid,
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("User with username {username} not found")]
+pub struct UserByUsernameNotFound {
+    pub username: String,
+}

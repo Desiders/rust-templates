@@ -13,7 +13,10 @@ use crate::{
     },
     domain::{
         common::errors::ErrKind,
-        user::{entities::User, errors::UserByIdNotFound},
+        user::{
+            entities::User,
+            errors::{UserByIdNotFound, UserByUsernameNotFound},
+        },
     },
     infra::db::models::users,
 };
@@ -36,6 +39,23 @@ impl<Conn: ConnectionTrait> UserReader for SeaOrmUserReader<'_, Conn> {
         match Entity::find_by_id(id).one(self.conn).await {
             Ok(Some(user)) => Ok(user.into()),
             Ok(None) => Err(ErrKind::Expected(UserByIdNotFound { id })),
+            Err(err) => Err(ErrKind::Unexpected(err.into())),
+        }
+    }
+
+    async fn get_by_username(
+        &self,
+        username: String,
+    ) -> Result<User, ErrKind<UserByUsernameNotFound>> {
+        use users::{Column::Username, Entity};
+
+        match Entity::find()
+            .filter(Username.eq(username.clone()))
+            .one(self.conn)
+            .await
+        {
+            Ok(Some(user)) => Ok(user.into()),
+            Ok(None) => Err(ErrKind::Expected(UserByUsernameNotFound { username })),
             Err(err) => Err(ErrKind::Unexpected(err.into())),
         }
     }

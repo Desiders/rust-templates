@@ -18,7 +18,8 @@ use crate::{
         user::{
             dtos::CreateUser,
             interactors::{
-                GetUserById, GetUserByIdInput, GetUsers, GetUsersInput, SaveUser, SaveUserInput,
+                GetUserById, GetUserByIdInput, GetUserByUsername, GetUserByUsernameInput, GetUsers,
+                GetUsersInput, SaveUser, SaveUserInput,
             },
         },
     },
@@ -88,6 +89,40 @@ async fn get_all(
     }
 }
 
+#[utoipa::path(get, path = "/@{username}",
+    params(
+        ("username" = String, Path, description = "Username"),
+    ),
+    responses(
+        (status = StatusCode::OK, body = OkResponse<User>, description = "User received successfully"),
+        (status = StatusCode::NOT_FOUND, body = ErrResponse, description = "User not found"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+    ),
+)]
+#[instrument(skip_all)]
+async fn get_by_username(
+    Inject(interactor): Inject<GetUserByUsername>,
+    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    Path(username): Path<String>,
+) -> impl IntoResponse {
+    match interactor
+        .execute(GetUserByUsernameInput {
+            username,
+            tx_manager: tx_manager.as_mut(),
+        })
+        .await
+    {
+        Ok(user) => (StatusCode::OK, Resp::Ok(user)),
+        Err(err) => {
+            error!(%err , "Get user by username error");
+            match err {
+                ErrKind::Expected(_) => (StatusCode::NOT_FOUND, Resp::Err(err)),
+                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
+            }
+        }
+    }
+}
+
 #[utoipa::path(get, path = "/{id}",
     params(
         ("id" = Uuid, Path, description = "User UUID v7"),
@@ -123,11 +158,12 @@ async fn get_by_id(
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(create, get_all, get_by_id))]
+#[openapi(paths(create, get_all, get_by_username, get_by_id))]
 pub(super) struct Doc;
 
 pub(super) fn router() -> Router {
     Router::new()
         .route("/", post(create).get(get_all))
+        .route("/@{username}", get(get_by_username))
         .route("/{id}", get(get_by_id))
 }
