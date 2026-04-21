@@ -10,19 +10,19 @@ use crate::{
 
 pub struct SaveUser {}
 
-pub struct SaveUserInput<'a, TxM: TxManager> {
+pub struct SaveUserInput<'a> {
     pub user: User,
-    pub tx_manager: &'a mut TxM,
+    pub tx_manager: &'a mut dyn TxManager,
 }
 
-impl<TxM: TxManager> Interactor<SaveUserInput<'_, TxM>> for &SaveUser {
+impl Interactor<SaveUserInput<'_>> for &SaveUser {
     type Output = User;
     type Err = ErrKind<UserAlreadyExists>;
 
     #[instrument(skip_all)]
     async fn execute(
         self,
-        SaveUserInput { user, tx_manager }: SaveUserInput<'_, TxM>,
+        SaveUserInput { user, tx_manager }: SaveUserInput<'_>,
     ) -> Result<Self::Output, Self::Err> {
         tx_manager.begin().await?;
 

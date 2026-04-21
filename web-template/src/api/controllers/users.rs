@@ -19,15 +19,15 @@ use crate::{
 #[utoipa::path(post, path = "", responses(
     (status = StatusCode::CREATED, body = OkResponse<User>)
 ))]
-async fn create<TxM: TxManager>(
+async fn create(
     Inject(interactor): Inject<SaveUser>,
-    InjectTransient(mut tx_manager): InjectTransient<TxM>,
+    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
     Json(CreateUser { id, username }): Json<CreateUser>,
 ) -> impl IntoResponse {
     match interactor
         .execute(SaveUserInput {
             user: User::new(id, username),
-            tx_manager: &mut tx_manager,
+            tx_manager: tx_manager.as_mut(),
         })
         .await
     {
@@ -46,6 +46,6 @@ async fn create<TxM: TxManager>(
 #[openapi(paths(create))]
 pub(super) struct Doc;
 
-pub(super) fn router<TxM: TxManager>() -> Router {
-    Router::new().route("/", post(create::<TxM>))
+pub(super) fn router() -> Router {
+    Router::new().route("/", post(create))
 }

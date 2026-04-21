@@ -1,5 +1,6 @@
 pub mod factories;
 
+use async_trait::async_trait;
 use sea_orm::{DatabaseConnection, DatabaseTransaction, TransactionTrait as _};
 use std::sync::Arc;
 
@@ -28,6 +29,7 @@ impl SeaOrmTxManager {
     }
 }
 
+#[async_trait]
 impl TxManager for SeaOrmTxManager {
     async fn begin(&mut self) -> Result<(), BeginError> {
         if self.transaction.is_none() {

@@ -2,21 +2,18 @@ use froodi::{
     DefaultScope::{App, Request},
     Inject, InstantiateErrorKind, Registry,
     async_impl::{Container, RegistryWithSync},
-    async_registry, instance, registry,
+    async_registry, boxed, instance, registry,
 };
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::sync::Arc;
 use tracing::{error, info};
 
 use crate::{
-    application::user,
+    application::{db::tx_manager::TxManager, user},
     config::{self, Config},
     infra::db::tx_manager::{
         SeaOrmTxManager,
-        factories::{
-            DefaultUserReaderFactory, DefaultUserRepoFactory, FactoryReader, FactoryRepo,
-            TxManagerFactories,
-        },
+        factories::{DefaultUserReaderFactory, DefaultUserRepoFactory, TxManagerFactories},
     },
 };
 
@@ -70,26 +67,23 @@ pub(super) fn db_registry(cfg: Registry) -> RegistryWithSync {
     }
 }
 
-pub(super) fn tx_manager_factories_registry() -> Registry {
-    registry! {
+pub(super) fn tx_manager_registry(db: RegistryWithSync) -> RegistryWithSync {
+    let factories = registry! {
         scope(App) [
             provide(|| {
-                let user_reader: Box<dyn FactoryReader> = Box::new(DefaultUserReaderFactory);
-                let user_repo: Box<dyn FactoryRepo> = Box::new(DefaultUserRepoFactory);
+                let user_reader = Box::new(DefaultUserReaderFactory);
+                let user_repo = Box::new(DefaultUserRepoFactory);
                 Ok(TxManagerFactories::new(user_reader, user_repo))
             }),
         ]
-    }
-}
-
-pub(super) fn tx_manager_registry(db: RegistryWithSync, factories: Registry) -> RegistryWithSync {
+    };
     async_registry! {
         provide(
             Request,
             |Inject(pool): Inject<DatabaseConnection>,
-             Inject(factories): Inject<TxManagerFactories>| {
-                async move { Ok(SeaOrmTxManager::new(pool, factories)) }
-            },
+             Inject(factories): Inject<TxManagerFactories>| async move {
+                Ok(boxed!(SeaOrmTxManager::new(pool, factories); TxManager))
+            }
         ),
         extend(db, factories),
     }
