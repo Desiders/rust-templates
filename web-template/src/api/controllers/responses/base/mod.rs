@@ -1,8 +1,8 @@
-use axum::{
-    Json,
-    response::{IntoResponse, Response},
-};
+mod serializer;
+
+use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+use serializer::{JsonSerializer, Serializer};
 use std::borrow::Cow;
 use utoipa::ToSchema;
 
@@ -26,23 +26,6 @@ impl<R: Serialize, E: IntoCode> Resp<R, E> {
 impl<R: Serialize, E: IntoCode> IntoResponse for Resp<R, E> {
     fn into_response(self) -> Response {
         self.with_serializer::<JsonSerializer>()
-    }
-}
-
-trait Serializer {
-    fn ok<R: Serialize>(resp: OkResponse<R>) -> Response;
-    fn err(err: ErrResponse) -> Response;
-}
-
-pub struct JsonSerializer;
-
-impl Serializer for JsonSerializer {
-    fn ok<R: Serialize>(resp: OkResponse<R>) -> Response {
-        Json(resp).into_response()
-    }
-
-    fn err(err: ErrResponse) -> Response {
-        Json(err).into_response()
     }
 }
 
