@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 
 use crate::{
+    application::user,
     config::{self, Config},
     infra::db::tx_manager::SeaOrmTxManager,
 };
@@ -17,6 +18,14 @@ pub(super) fn cfg_registry(cfg: Config) -> Registry {
     registry! {
         scope(App) [
             provide(instance(cfg.database)),
+        ]
+    }
+}
+
+pub(super) fn interactors_registry() -> Registry {
+    registry! {
+        scope(Request) [
+            provide(|| Ok(user::interactors::SaveUser {})),
         ]
     }
 }
@@ -81,10 +90,6 @@ where
         ),
         extend(db),
     }
-}
-
-pub(super) fn interactors_registry(cfg: Registry) -> Registry {
-    registry! {}
 }
 
 pub(super) fn init(interactors: Registry, tx_manager: RegistryWithSync) -> Container {
