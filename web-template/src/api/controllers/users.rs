@@ -1,9 +1,9 @@
 use axum::{Json, Router, http::StatusCode, response::IntoResponse, routing::post};
 use froodi::{Inject, InjectTransient};
-use tracing::error;
+use tracing::{error, instrument};
 use utoipa::OpenApi;
 
-use super::responses::base::{OkResponse, Resp};
+use super::responses::base::{ErrResponse, OkResponse, Resp};
 use crate::{
     application::{
         common::interactor::Interactor,
@@ -16,9 +16,15 @@ use crate::{
     domain::{common::errors::ErrKind, user::entities::User},
 };
 
-#[utoipa::path(post, path = "", responses(
-    (status = StatusCode::CREATED, body = OkResponse<User>)
-))]
+#[utoipa::path(post, path = "",
+    request_body = CreateUser,
+    responses(
+        (status = StatusCode::CREATED, body = OkResponse<User>, description = "User created successfully"),
+        (status = StatusCode::CONFLICT, body = ErrResponse, description = "User already exists"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+    ),
+)]
+#[instrument(skip_all)]
 async fn create(
     Inject(interactor): Inject<SaveUser>,
     InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
