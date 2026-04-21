@@ -4,6 +4,7 @@ use utoipa_rapidoc::RapiDoc;
 
 pub(super) mod responses;
 
+mod default;
 mod healthcheck;
 mod users;
 
@@ -19,6 +20,7 @@ struct Doc;
 
 pub fn router() -> Router {
     Router::new()
+        .merge(default::router())
         .merge(healthcheck::router())
         .nest("/users", users::router())
         .merge(RapiDoc::with_openapi("/api-docs/openapi.json", Doc::openapi()).path("/docs"))
