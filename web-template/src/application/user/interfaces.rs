@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use uuid::Uuid;
 
 use crate::domain::{
     common::errors::ErrKind,
@@ -10,7 +11,7 @@ use crate::domain::{
 
 #[async_trait]
 pub trait UserReader: Send + Sync {
-    async fn get_by_id(&self, id: i64) -> Result<User, ErrKind<UserNotFound>>;
+    async fn get_by_id(&self, id: Uuid) -> Result<User, ErrKind<UserNotFound>>;
 }
 
 #[async_trait]

@@ -1,19 +1,20 @@
 use serde::Serialize;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 use crate::infra::db::models::users;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct User {
-    pub id: i64,
+    pub id: Uuid,
     pub username: Option<String>,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
 }
 
 impl User {
-    pub fn new(id: i64, username: Option<String>) -> Self {
+    pub fn new(id: Uuid, username: Option<String>) -> Self {
         Self {
             id,
             username,
