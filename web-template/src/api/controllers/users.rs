@@ -1,6 +1,5 @@
 use axum::{
-    Json, Router,
-    extract::{Path, Query},
+    Router,
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -12,6 +11,7 @@ use uuid::Uuid;
 
 use super::responses::base::{ErrResponse, OkResponse, Resp};
 use crate::{
+    api::extractors::responses::{Json, Path, Query},
     application::{
         common::{entities::Pagination, interactor::Interactor},
         db::tx_manager::TxManager,

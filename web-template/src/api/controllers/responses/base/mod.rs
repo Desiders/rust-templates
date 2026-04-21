@@ -1,3 +1,8 @@
+//! Shared API response structures used by controllers.
+//!
+//! Controllers return `Resp` so successful values and domain/application errors
+//! are serialized with one consistent JSON shape.
+
 mod serializer;
 
 use axum::response::{IntoResponse, Response};
@@ -8,6 +13,8 @@ use utoipa::ToSchema;
 
 use crate::domain::code::{entities::Code, interfaces::IntoCode};
 
+/// Controller return type that can represent either a successful payload or an
+/// error that can be converted into an API code.
 pub enum Resp<R: Serialize, E: IntoCode> {
     Ok(R),
     Err(E),
@@ -29,6 +36,9 @@ impl<R: Serialize, E: IntoCode> IntoResponse for Resp<R, E> {
     }
 }
 
+/// Successful JSON response structure.
+///
+/// Serialized as `{ "is_success": true, "result": ... }`.
 #[derive(Serialize, ToSchema)]
 pub struct OkResponse<R: ?Sized> {
     is_success: bool,
@@ -44,6 +54,9 @@ impl<R: Serialize> From<R> for OkResponse<R> {
     }
 }
 
+/// Error JSON response structure.
+///
+/// Serialized as `{ "is_success": false, "code": ..., "name": ..., "message": ... }`.
 #[derive(Serialize, ToSchema)]
 pub struct ErrResponse {
     is_success: bool,
