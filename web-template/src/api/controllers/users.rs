@@ -82,10 +82,7 @@ async fn get_all(
         Ok(users) => (StatusCode::OK, Resp::Ok(users)),
         Err(err) => {
             error!(%err , "Get users error");
-            match err {
-                ErrKind::Expected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
-                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
-            }
+            (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err))
         }
     }
 }

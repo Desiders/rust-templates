@@ -1,3 +1,5 @@
+#![allow(clippy::needless_for_each)]
+
 use axum::Router;
 use utoipa::OpenApi;
 use utoipa_rapidoc::RapiDoc;

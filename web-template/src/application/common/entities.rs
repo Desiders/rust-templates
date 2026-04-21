@@ -25,15 +25,10 @@ impl Pagination {
     }
 }
 
-impl Default for Order {
-    fn default() -> Self {
-        Self::Asc
-    }
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Default, Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Order {
+    #[default]
     Asc,
     Desc,
 }

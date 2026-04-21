@@ -6,6 +6,7 @@ use std::{
 
 #[derive(Debug, Serialize)]
 pub struct Code {
+    #[allow(clippy::struct_field_names)]
     pub code: u16,
     pub name: &'static str,
     pub message: Cow<'static, str>,

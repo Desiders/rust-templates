@@ -1,3 +1,5 @@
+#![allow(clippy::wildcard_imports)]
+
 use sea_orm_migration::prelude::*;
 
 #[tokio::main]

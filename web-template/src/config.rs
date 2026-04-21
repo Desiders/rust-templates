@@ -18,6 +18,7 @@ pub struct Database {
     pub port: i16,
     pub user: Box<str>,
     pub password: Box<str>,
+    #[allow(clippy::struct_field_names)]
     pub database: Box<str>,
 }
 

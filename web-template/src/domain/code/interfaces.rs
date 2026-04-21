@@ -8,6 +8,7 @@ use crate::domain::{
 };
 
 pub trait IntoCode {
+    #[allow(clippy::wrong_self_convention)]
     fn into_code(&self) -> Code;
 }
 
