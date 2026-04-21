@@ -1,0 +1,12 @@
+[serve]
+addr = "0.0.0.0:3001"
+
+[logging]
+dirs = "info"
+
+[database]
+user = "..."
+password = "..."
+host = "web_template.postgres"
+port = 5432
+database = "api"
