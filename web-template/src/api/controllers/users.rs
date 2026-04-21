@@ -1,7 +1,14 @@
-use axum::{Json, Router, http::StatusCode, response::IntoResponse, routing::post};
+use axum::{
+    Json, Router,
+    extract::Path,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+};
 use froodi::{Inject, InjectTransient};
 use tracing::{error, instrument};
 use utoipa::OpenApi;
+use uuid::Uuid;
 
 use super::responses::base::{ErrResponse, OkResponse, Resp};
 use crate::{
@@ -10,7 +17,7 @@ use crate::{
         db::tx_manager::TxManager,
         user::{
             dtos::CreateUser,
-            interactors::{SaveUser, SaveUserInput},
+            interactors::{GetUserById, GetUserByIdInput, SaveUser, SaveUserInput},
         },
     },
     domain::{common::errors::ErrKind, user::entities::User},
@@ -48,10 +55,46 @@ async fn create(
     }
 }
 
+#[utoipa::path(get, path = "/{id}",
+    params(
+        ("id" = Uuid, Path, description = "User UUID v7"),
+    ),
+    responses(
+        (status = StatusCode::OK, body = OkResponse<User>, description = "User received successfully"),
+        (status = StatusCode::NOT_FOUND, body = ErrResponse, description = "User not found"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+    ),
+)]
+#[instrument(skip_all)]
+async fn get_by_id(
+    Inject(interactor): Inject<GetUserById>,
+    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+    match interactor
+        .execute(GetUserByIdInput {
+            id,
+            tx_manager: tx_manager.as_mut(),
+        })
+        .await
+    {
+        Ok(user) => (StatusCode::OK, Resp::Ok(user)),
+        Err(err) => {
+            error!(%err , "Get user by id error");
+            match err {
+                ErrKind::Expected(_) => (StatusCode::NOT_FOUND, Resp::Err(err)),
+                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
+            }
+        }
+    }
+}
+
 #[derive(OpenApi)]
-#[openapi(paths(create))]
+#[openapi(paths(create, get_by_id))]
 pub(super) struct Doc;
 
 pub(super) fn router() -> Router {
-    Router::new().route("/", post(create))
+    Router::new()
+        .route("/", post(create))
+        .route("/{id}", get(get_by_id))
 }

@@ -1,4 +1,4 @@
-use serde::{de::Error as _, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de::Error as _};
 use uuid::{Uuid, Version};
 
 pub fn deserialize_uuid_v7<'de, D>(deserializer: D) -> Result<Uuid, D::Error>

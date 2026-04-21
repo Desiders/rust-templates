@@ -9,6 +9,6 @@ pub struct UserAlreadyExists {
 
 #[derive(Debug, thiserror::Error)]
 #[error("User with id {id} not found")]
-pub struct UserNotFound {
+pub struct UserByIdNotFound {
     pub id: Uuid,
 }

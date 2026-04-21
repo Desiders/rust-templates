@@ -5,13 +5,13 @@ use crate::domain::{
     common::errors::ErrKind,
     user::{
         entities::User,
-        errors::{UserAlreadyExists, UserNotFound},
+        errors::{UserAlreadyExists, UserByIdNotFound},
     },
 };
 
 #[async_trait]
 pub trait UserReader: Send + Sync {
-    async fn get_by_id(&self, id: Uuid) -> Result<User, ErrKind<UserNotFound>>;
+    async fn get_by_id(&self, id: Uuid) -> Result<User, ErrKind<UserByIdNotFound>>;
 }
 
 #[async_trait]

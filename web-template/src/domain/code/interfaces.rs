@@ -2,7 +2,10 @@ use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
 use std::convert::Infallible;
 
 use super::{constants::UNEXPECTED, entities::Code};
-use crate::domain::{common::errors::ErrKind, user::errors::UserAlreadyExists};
+use crate::domain::{
+    common::errors::ErrKind,
+    user::errors::{UserAlreadyExists, UserByIdNotFound},
+};
 
 pub trait IntoCode {
     fn into_code(&self) -> Code;
@@ -30,13 +33,13 @@ impl IntoCode for anyhow::Error {
 }
 
 macro_rules! code_entity {
-        ($($name:ident => ($code:expr, $label:expr)),* $(,)?) => {
+        ($($name:ident => $code:expr),* $(,)?) => {
             $(
                 impl IntoCode for $name {
                     fn into_code(&self) -> Code {
                         Code {
                             code: $code,
-                            name: $label,
+                            name: stringify!($name),
                             message: self.to_string().into(),
                         }
                     }
@@ -46,10 +49,11 @@ macro_rules! code_entity {
     }
 
 code_entity! {
-    JsonRejection => (1001, "Parse JSON error"),
-    PathRejection => (1002, "Path error"),
-    QueryRejection => (1003, "Query error"),
+    JsonRejection => 1001,
+    PathRejection => 1002,
+    QueryRejection => 1003,
 }
 code_entity! {
-    UserAlreadyExists => (1004, "User already exists"),
+    UserAlreadyExists => 1004,
+    UserByIdNotFound => 1005,
 }
