@@ -2,9 +2,7 @@ use std::convert::Infallible;
 use tracing::{info, instrument};
 
 use crate::{
-    application::{
-        common::interactor::Interactor, db::tx_manager::TxManager, user::interfaces::UserRepo,
-    },
+    application::{common::interactor::Interactor, db::tx_manager::TxManager},
     domain::{common::errors::ErrKind, user::entity::User},
 };
 

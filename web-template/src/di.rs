@@ -11,7 +11,13 @@ use tracing::{error, info};
 use crate::{
     application::user,
     config::{self, Config},
-    infra::db::tx_manager::SeaOrmTxManager,
+    infra::db::tx_manager::{
+        SeaOrmTxManager,
+        factories::{
+            DefaultUserReaderFactory, DefaultUserRepoFactory, FactoryReader, FactoryRepo,
+            TxManagerFactories,
+        },
+    },
 };
 
 pub(super) fn cfg_registry(cfg: Config) -> Registry {
@@ -64,31 +70,28 @@ pub(super) fn db_registry(cfg: Registry) -> RegistryWithSync {
     }
 }
 
-pub(super) fn tx_manager_registry<UReader, URepo>(
-    db: RegistryWithSync,
-    user_reader_factory: UReader,
-    user_repo_factory: URepo,
-) -> RegistryWithSync
-where
-    UReader: Send + Sync + Clone + 'static,
-    URepo: Send + Sync + Clone + 'static,
-{
+pub(super) fn tx_manager_factories_registry() -> Registry {
+    registry! {
+        scope(App) [
+            provide(|| {
+                let user_reader: Box<dyn FactoryReader> = Box::new(DefaultUserReaderFactory);
+                let user_repo: Box<dyn FactoryRepo> = Box::new(DefaultUserRepoFactory);
+                Ok(TxManagerFactories::new(user_reader, user_repo))
+            }),
+        ]
+    }
+}
+
+pub(super) fn tx_manager_registry(db: RegistryWithSync, factories: Registry) -> RegistryWithSync {
     async_registry! {
         provide(
             Request,
-            move |Inject(pool): Inject<DatabaseConnection>| {
-                let user_reader_factory = user_reader_factory.clone();
-                let user_repo_factory = user_repo_factory.clone();
-                async move {
-                    Ok(SeaOrmTxManager::builder(pool)
-                        .user_reader_factory(user_reader_factory)
-                        .user_repo_factory(user_repo_factory)
-                        .build()
-                    )
-                }
+            |Inject(pool): Inject<DatabaseConnection>,
+             Inject(factories): Inject<TxManagerFactories>| {
+                async move { Ok(SeaOrmTxManager::new(pool, factories)) }
             },
         ),
-        extend(db),
+        extend(db, factories),
     }
 }
 

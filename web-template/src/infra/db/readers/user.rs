@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait as _, sea_query::OnConflict};
 use std::convert::Infallible;
 
@@ -20,6 +21,7 @@ impl<'a, Conn> SeaOrmUserReader<'a, Conn> {
     }
 }
 
+#[async_trait]
 impl<Conn: ConnectionTrait> UserReader for SeaOrmUserReader<'_, Conn> {
     async fn get_by_id(&self, id: i64) -> Result<User, ErrKind<UserNotFound>> {
         unimplemented!()

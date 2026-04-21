@@ -1,27 +1,38 @@
 use sea_orm::{DatabaseConnection, DatabaseTransaction};
 
-use crate::infra::db::{readers::user::SeaOrmUserReader, repos::user::SeaOrmUserRepo};
+use crate::{
+    application::user::interfaces::{UserReader, UserRepo},
+    infra::db::{readers::user::SeaOrmUserReader, repos::user::SeaOrmUserRepo},
+};
 
 pub trait FactoryReader: Send + Sync {
-    type Res<'a>: Send;
-
-    fn factory<'a>(&self, conn: &'a DatabaseConnection) -> Self::Res<'a>;
+    fn factory<'a>(&self, conn: &'a DatabaseConnection) -> Box<dyn UserReader + 'a>;
 }
 
 pub trait FactoryRepo: Send + Sync {
-    type Res<'a>: Send;
+    fn factory<'a>(&self, conn: &'a DatabaseTransaction) -> Box<dyn UserRepo + 'a>;
+}
 
-    fn factory<'a>(&self, conn: &'a DatabaseTransaction) -> Self::Res<'a>;
+pub struct TxManagerFactories {
+    pub user_reader: Box<dyn FactoryReader>,
+    pub user_repo: Box<dyn FactoryRepo>,
+}
+
+impl TxManagerFactories {
+    pub const fn new(user_reader: Box<dyn FactoryReader>, user_repo: Box<dyn FactoryRepo>) -> Self {
+        Self {
+            user_reader,
+            user_repo,
+        }
+    }
 }
 
 #[derive(Clone)]
 pub struct DefaultUserReaderFactory;
 
 impl FactoryReader for DefaultUserReaderFactory {
-    type Res<'a> = SeaOrmUserReader<'a, DatabaseConnection>;
-
-    fn factory<'a>(&self, conn: &'a DatabaseConnection) -> Self::Res<'a> {
-        SeaOrmUserReader::new(conn)
+    fn factory<'a>(&self, conn: &'a DatabaseConnection) -> Box<dyn UserReader + 'a> {
+        Box::new(SeaOrmUserReader::new(conn))
     }
 }
 
@@ -29,9 +40,7 @@ impl FactoryReader for DefaultUserReaderFactory {
 pub struct DefaultUserRepoFactory;
 
 impl FactoryRepo for DefaultUserRepoFactory {
-    type Res<'a> = SeaOrmUserRepo<'a, DatabaseTransaction>;
-
-    fn factory<'a>(&self, conn: &'a DatabaseTransaction) -> Self::Res<'a> {
-        SeaOrmUserRepo::new(conn)
+    fn factory<'a>(&self, conn: &'a DatabaseTransaction) -> Box<dyn UserRepo + 'a> {
+        Box::new(SeaOrmUserRepo::new(conn))
     }
 }

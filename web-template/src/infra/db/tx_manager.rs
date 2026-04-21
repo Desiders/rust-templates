@@ -1,6 +1,5 @@
 pub mod factories;
 
-use bon::Builder;
 use sea_orm::{DatabaseConnection, DatabaseTransaction, TransactionTrait as _};
 use std::sync::Arc;
 
@@ -11,23 +10,25 @@ use crate::application::{
     },
     user::interfaces::{UserReader, UserRepo},
 };
-use factories::{FactoryReader, FactoryRepo};
+use factories::TxManagerFactories;
 
-#[derive(Builder)]
-pub struct SeaOrmTxManager<UReader, URepo> {
-    #[builder(start_fn)]
+pub struct SeaOrmTxManager {
     pool: Arc<DatabaseConnection>,
-    #[builder(skip)]
     transaction: Option<DatabaseTransaction>,
-    user_reader_factory: UReader,
-    user_repo_factory: URepo,
+    factories: Arc<TxManagerFactories>,
 }
 
-impl<UReader, URepo> TxManager for SeaOrmTxManager<UReader, URepo>
-where
-    UReader: for<'a> FactoryReader<Res<'a>: UserReader>,
-    URepo: for<'a> FactoryRepo<Res<'a>: UserRepo>,
-{
+impl SeaOrmTxManager {
+    pub const fn new(pool: Arc<DatabaseConnection>, factories: Arc<TxManagerFactories>) -> Self {
+        Self {
+            pool,
+            transaction: None,
+            factories,
+        }
+    }
+}
+
+impl TxManager for SeaOrmTxManager {
     async fn begin(&mut self) -> Result<(), BeginError> {
         if self.transaction.is_none() {
             self.transaction = Some(self.pool.begin().await?);
@@ -49,14 +50,14 @@ where
         Ok(())
     }
 
-    fn user_reader(&self) -> impl UserReader + Send {
-        self.user_reader_factory.factory(self.pool.as_ref())
+    fn user_reader(&self) -> Box<dyn UserReader + '_> {
+        self.factories.user_reader.factory(self.pool.as_ref())
     }
 
-    fn user_repo(&self) -> Result<impl UserRepo + Send, TransactionNotBegin> {
+    fn user_repo(&self) -> Result<Box<dyn UserRepo + '_>, TransactionNotBegin> {
         let Some(transaction) = self.transaction.as_ref() else {
             return Err(TransactionNotBegin);
         };
-        Ok(self.user_repo_factory.factory(transaction))
+        Ok(self.factories.user_repo.factory(transaction))
     }
 }

@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait as _, sea_query::OnConflict};
 use std::convert::Infallible;
 
@@ -17,6 +18,7 @@ impl<'a, Conn> SeaOrmUserRepo<'a, Conn> {
     }
 }
 
+#[async_trait]
 impl<Conn: ConnectionTrait> UserRepo for SeaOrmUserRepo<'_, Conn> {
     async fn upsert(
         &self,
