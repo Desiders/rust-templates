@@ -18,9 +18,9 @@ use crate::{
         user::{
             dtos::CreateUser,
             interactors::{
-                DeleteUserById, DeleteUserByIdInput, GetUserById, GetUserByIdInput,
-                GetUserByUsername, GetUserByUsernameInput, GetUsers, GetUsersInput, SaveUser,
-                SaveUserInput,
+                AddUser, AddUserInput, DeleteUserById, DeleteUserByIdInput, GetUserById,
+                GetUserByIdInput, GetUserByUsername, GetUserByUsernameInput, GetUsers,
+                GetUsersInput,
             },
         },
     },
@@ -37,12 +37,12 @@ use crate::{
 )]
 #[instrument(skip_all)]
 async fn create(
-    Inject(interactor): Inject<SaveUser>,
+    Inject(interactor): Inject<AddUser>,
     InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
     Json(CreateUser { id, username }): Json<CreateUser>,
 ) -> impl IntoResponse {
     match interactor
-        .execute(SaveUserInput {
+        .execute(AddUserInput {
             user: User::new(id, username),
             tx_manager: tx_manager.as_mut(),
         })

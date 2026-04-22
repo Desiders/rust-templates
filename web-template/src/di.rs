@@ -28,7 +28,7 @@ pub(super) fn cfg_registry(cfg: Config) -> Registry {
 pub(super) fn interactors_registry() -> Registry {
     registry! {
         scope(Request) [
-            provide(|| Ok(user::interactors::SaveUser {})),
+            provide(|| Ok(user::interactors::AddUser {})),
             provide(|| Ok(user::interactors::GetUserById {})),
             provide(|| Ok(user::interactors::GetUserByUsername {})),
             provide(|| Ok(user::interactors::GetUsers {})),

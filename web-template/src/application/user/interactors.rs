@@ -17,13 +17,13 @@ use crate::{
 };
 use uuid::Uuid;
 
-pub struct SaveUser {}
+pub struct AddUser {}
 pub struct GetUserById {}
 pub struct GetUserByUsername {}
 pub struct GetUsers {}
 pub struct DeleteUserById {}
 
-pub struct SaveUserInput<'a> {
+pub struct AddUserInput<'a> {
     pub user: User,
     pub tx_manager: &'a mut dyn TxManager,
 }
@@ -48,14 +48,14 @@ pub struct DeleteUserByIdInput<'a> {
     pub tx_manager: &'a mut dyn TxManager,
 }
 
-impl Interactor<SaveUserInput<'_>> for &SaveUser {
+impl Interactor<AddUserInput<'_>> for &AddUser {
     type Output = User;
     type Err = ErrKind<UserAlreadyExists>;
 
     #[instrument(skip_all)]
     async fn execute(
         self,
-        SaveUserInput { user, tx_manager }: SaveUserInput<'_>,
+        AddUserInput { user, tx_manager }: AddUserInput<'_>,
     ) -> Result<Self::Output, Self::Err> {
         tx_manager.begin().await?;
 
