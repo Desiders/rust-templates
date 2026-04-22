@@ -1,6 +1,6 @@
 use froodi::{
     DefaultScope::{App, Request},
-    Inject, InstantiateErrorKind, Registry,
+    Inject, InjectTransient, InstantiateErrorKind, Registry,
     async_impl::{Container, RegistryWithSync},
     async_registry, boxed, instance, registry,
 };
@@ -21,18 +21,6 @@ pub(super) fn cfg_registry(cfg: Config) -> Registry {
     registry! {
         scope(App) [
             provide(instance(cfg.database)),
-        ]
-    }
-}
-
-pub(super) fn interactors_registry() -> Registry {
-    registry! {
-        scope(Request) [
-            provide(|| Ok(user::interactors::AddUser {})),
-            provide(|| Ok(user::interactors::GetUserById {})),
-            provide(|| Ok(user::interactors::GetUserByUsername {})),
-            provide(|| Ok(user::interactors::GetUsers {})),
-            provide(|| Ok(user::interactors::DeleteUserById {})),
         ]
     }
 }
@@ -93,9 +81,42 @@ pub(super) fn tx_manager_registry(db: RegistryWithSync) -> RegistryWithSync {
     }
 }
 
-pub(super) fn init(interactors: Registry, tx_manager: RegistryWithSync) -> Container {
+pub(super) fn interactors_registry(tx_manager: RegistryWithSync) -> RegistryWithSync {
+    async_registry! {
+        scope(Request) [
+            provide(
+                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
+                    Ok(user::interactors::AddUser::new(tx_manager))
+                }
+            ),
+            provide(
+                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
+                    Ok(user::interactors::GetUserById::new(tx_manager))
+                }
+            ),
+            provide(
+                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
+                    Ok(user::interactors::GetUserByUsername::new(tx_manager))
+                }
+            ),
+            provide(
+                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
+                    Ok(user::interactors::GetUsers::new(tx_manager))
+                }
+            ),
+            provide(
+                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
+                    Ok(user::interactors::DeleteUserById::new(tx_manager))
+                }
+            ),
+        ],
+        extend(tx_manager),
+    }
+}
+
+pub(super) fn init(interactors: RegistryWithSync, tx_manager: RegistryWithSync) -> Container {
     let registry = async_registry! {
-        extend(interactors, tx_manager),
+        extend(tx_manager, interactors),
     };
     Container::new(registry)
 }

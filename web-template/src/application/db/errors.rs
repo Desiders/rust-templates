@@ -63,13 +63,3 @@ impl<E> From<RollbackError> for ErrKind<E> {
         ErrKind::Unexpected(err.into())
     }
 }
-
-#[derive(Debug, thiserror::Error)]
-#[error("Transaction not begin")]
-pub struct TransactionNotBegin;
-
-impl<E> From<TransactionNotBegin> for ErrKind<E> {
-    fn from(err: TransactionNotBegin) -> Self {
-        ErrKind::Unexpected(err.into())
-    }
-}

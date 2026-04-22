@@ -4,7 +4,7 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use froodi::{Inject, InjectTransient};
+use froodi::InjectTransient;
 use tracing::{error, instrument};
 use utoipa::OpenApi;
 use uuid::Uuid;
@@ -14,7 +14,6 @@ use crate::{
     api::extractors::responses::{Json, Path, Query},
     application::{
         common::{entities::Pagination, interactor::Interactor},
-        db::tx_manager::TxManager,
         user::{
             dtos::CreateUser,
             interactors::{
@@ -37,14 +36,12 @@ use crate::{
 )]
 #[instrument(skip_all)]
 async fn create(
-    Inject(interactor): Inject<AddUser>,
-    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    InjectTransient(interactor): InjectTransient<AddUser>,
     Json(CreateUser { id, username }): Json<CreateUser>,
 ) -> impl IntoResponse {
     match interactor
         .execute(AddUserInput {
             user: User::new(id, username),
-            tx_manager: tx_manager.as_mut(),
         })
         .await
     {
@@ -68,17 +65,10 @@ async fn create(
 )]
 #[instrument(skip_all)]
 async fn get_all(
-    Inject(interactor): Inject<GetUsers>,
-    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    InjectTransient(interactor): InjectTransient<GetUsers>,
     Query(pagination): Query<Pagination>,
 ) -> impl IntoResponse {
-    match interactor
-        .execute(GetUsersInput {
-            pagination,
-            tx_manager: tx_manager.as_mut(),
-        })
-        .await
-    {
+    match interactor.execute(GetUsersInput { pagination }).await {
         Ok(users) => (StatusCode::OK, Resp::Ok(users)),
         Err(err) => {
             error!(%err , "Get users error");
@@ -99,15 +89,11 @@ async fn get_all(
 )]
 #[instrument(skip_all)]
 async fn get_by_username(
-    Inject(interactor): Inject<GetUserByUsername>,
-    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    InjectTransient(interactor): InjectTransient<GetUserByUsername>,
     Path(username): Path<String>,
 ) -> impl IntoResponse {
     match interactor
-        .execute(GetUserByUsernameInput {
-            username,
-            tx_manager: tx_manager.as_mut(),
-        })
+        .execute(GetUserByUsernameInput { username })
         .await
     {
         Ok(user) => (StatusCode::OK, Resp::Ok(user)),
@@ -133,17 +119,10 @@ async fn get_by_username(
 )]
 #[instrument(skip_all)]
 async fn get_by_id(
-    Inject(interactor): Inject<GetUserById>,
-    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    InjectTransient(interactor): InjectTransient<GetUserById>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match interactor
-        .execute(GetUserByIdInput {
-            id,
-            tx_manager: tx_manager.as_mut(),
-        })
-        .await
-    {
+    match interactor.execute(GetUserByIdInput { id }).await {
         Ok(user) => (StatusCode::OK, Resp::Ok(user)),
         Err(err) => {
             error!(%err , "Get user by id error");
@@ -167,17 +146,10 @@ async fn get_by_id(
 )]
 #[instrument(skip_all)]
 async fn delete_by_id(
-    Inject(interactor): Inject<DeleteUserById>,
-    InjectTransient(mut tx_manager): InjectTransient<Box<dyn TxManager>>,
+    InjectTransient(interactor): InjectTransient<DeleteUserById>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match interactor
-        .execute(DeleteUserByIdInput {
-            id,
-            tx_manager: tx_manager.as_mut(),
-        })
-        .await
-    {
+    match interactor.execute(DeleteUserByIdInput { id }).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
             error!(%err , "Delete user by id error");

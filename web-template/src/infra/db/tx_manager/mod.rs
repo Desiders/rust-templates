@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::application::{
     db::{
-        errors::{BeginError, CommitError, RollbackError, TransactionNotBegin},
-        tx_manager::TxManager,
+        errors::{BeginError, CommitError, RollbackError},
+        tx_manager::{ActiveTxManager, TxManager},
     },
     user::interfaces::{UserReader, UserRepo},
 };
@@ -15,51 +15,48 @@ use factories::TxManagerFactories;
 
 pub struct SeaOrmTxManager {
     pool: Arc<DatabaseConnection>,
-    transaction: Option<DatabaseTransaction>,
     factories: Arc<TxManagerFactories>,
 }
 
 impl SeaOrmTxManager {
     pub const fn new(pool: Arc<DatabaseConnection>, factories: Arc<TxManagerFactories>) -> Self {
-        Self {
-            pool,
-            transaction: None,
-            factories,
-        }
+        Self { pool, factories }
     }
+}
+
+pub struct SeaOrmActiveTxManager {
+    transaction: DatabaseTransaction,
+    factories: Arc<TxManagerFactories>,
 }
 
 #[async_trait]
 impl TxManager for SeaOrmTxManager {
-    async fn begin(&mut self) -> Result<(), BeginError> {
-        if self.transaction.is_none() {
-            self.transaction = Some(self.pool.begin().await?);
-        }
-        Ok(())
-    }
-
-    async fn commit(&mut self) -> Result<(), CommitError> {
-        if let Some(transaction) = self.transaction.take() {
-            transaction.commit().await?;
-        }
-        Ok(())
-    }
-
-    async fn rollback(&mut self) -> Result<(), RollbackError> {
-        if let Some(transaction) = self.transaction.take() {
-            transaction.rollback().await?;
-        }
-        Ok(())
+    async fn begin(&self) -> Result<Box<dyn ActiveTxManager>, BeginError> {
+        let transaction = self.pool.begin().await?;
+        Ok(Box::new(SeaOrmActiveTxManager {
+            transaction,
+            factories: self.factories.clone(),
+        }))
     }
 
     fn user_reader(&self) -> Box<dyn UserReader + '_> {
         self.factories.user_reader.factory(self.pool.as_ref())
     }
+}
 
-    fn user_repo(&self) -> Result<Box<dyn UserRepo + '_>, TransactionNotBegin> {
-        let Some(transaction) = self.transaction.as_ref() else {
-            return Err(TransactionNotBegin);
-        };
-        Ok(self.factories.user_repo.factory(transaction))
+#[async_trait]
+impl ActiveTxManager for SeaOrmActiveTxManager {
+    async fn commit(self: Box<Self>) -> Result<(), CommitError> {
+        self.transaction.commit().await?;
+        Ok(())
+    }
+
+    async fn rollback(self: Box<Self>) -> Result<(), RollbackError> {
+        self.transaction.rollback().await?;
+        Ok(())
+    }
+
+    fn user_repo(&self) -> Box<dyn UserRepo + '_> {
+        self.factories.user_repo.factory(&self.transaction)
     }
 }

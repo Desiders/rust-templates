@@ -17,51 +17,94 @@ use crate::{
 };
 use uuid::Uuid;
 
-pub struct AddUser {}
-pub struct GetUserById {}
-pub struct GetUserByUsername {}
-pub struct GetUsers {}
-pub struct DeleteUserById {}
+pub struct AddUser {
+    tx_manager: Box<dyn TxManager>,
+}
 
-pub struct AddUserInput<'a> {
+pub struct GetUserById {
+    tx_manager: Box<dyn TxManager>,
+}
+
+pub struct GetUserByUsername {
+    tx_manager: Box<dyn TxManager>,
+}
+
+pub struct GetUsers {
+    tx_manager: Box<dyn TxManager>,
+}
+
+pub struct DeleteUserById {
+    tx_manager: Box<dyn TxManager>,
+}
+
+impl AddUser {
+    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+        Self { tx_manager }
+    }
+}
+
+impl GetUserById {
+    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+        Self { tx_manager }
+    }
+}
+
+impl GetUserByUsername {
+    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+        Self { tx_manager }
+    }
+}
+
+impl GetUsers {
+    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+        Self { tx_manager }
+    }
+}
+
+impl DeleteUserById {
+    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+        Self { tx_manager }
+    }
+}
+
+pub struct AddUserInput {
     pub user: User,
-    pub tx_manager: &'a mut dyn TxManager,
 }
 
-pub struct GetUserByIdInput<'a> {
+pub struct GetUserByIdInput {
     pub id: Uuid,
-    pub tx_manager: &'a mut dyn TxManager,
 }
 
-pub struct GetUserByUsernameInput<'a> {
+pub struct GetUserByUsernameInput {
     pub username: String,
-    pub tx_manager: &'a mut dyn TxManager,
 }
 
-pub struct GetUsersInput<'a> {
+pub struct GetUsersInput {
     pub pagination: Pagination,
-    pub tx_manager: &'a mut dyn TxManager,
 }
 
-pub struct DeleteUserByIdInput<'a> {
+pub struct DeleteUserByIdInput {
     pub id: Uuid,
-    pub tx_manager: &'a mut dyn TxManager,
 }
 
-impl Interactor<AddUserInput<'_>> for &AddUser {
+impl Interactor<AddUserInput> for &AddUser {
     type Output = User;
     type Err = ErrKind<UserAlreadyExists>;
 
     #[instrument(skip_all)]
-    async fn execute(
-        self,
-        AddUserInput { user, tx_manager }: AddUserInput<'_>,
-    ) -> Result<Self::Output, Self::Err> {
-        tx_manager.begin().await?;
+    async fn execute(self, AddUserInput { user }: AddUserInput) -> Result<Self::Output, Self::Err> {
+        let tx_manager = self.tx_manager.begin().await?;
 
-        let repo = tx_manager.user_repo()?;
-        let user = repo.add(user).await?;
-        drop(repo);
+        let user = match {
+            let repo = tx_manager.user_repo();
+            repo.add(user).await
+        } {
+            Ok(user) => user,
+            Err(err) => {
+                tx_manager.rollback().await?;
+                return Err(err);
+            }
+        };
 
         tx_manager.commit().await?;
         info!(%user.id, "User saved");
@@ -70,16 +113,16 @@ impl Interactor<AddUserInput<'_>> for &AddUser {
     }
 }
 
-impl Interactor<GetUserByIdInput<'_>> for &GetUserById {
+impl Interactor<GetUserByIdInput> for &GetUserById {
     type Output = User;
     type Err = ErrKind<UserByIdNotFound>;
 
     #[instrument(skip_all)]
     async fn execute(
         self,
-        GetUserByIdInput { id, tx_manager }: GetUserByIdInput<'_>,
+        GetUserByIdInput { id }: GetUserByIdInput,
     ) -> Result<Self::Output, Self::Err> {
-        let reader = tx_manager.user_reader();
+        let reader = self.tx_manager.user_reader();
         let user = reader.get_by_id(id).await?;
         info!(%user.id, "User received");
 
@@ -87,19 +130,16 @@ impl Interactor<GetUserByIdInput<'_>> for &GetUserById {
     }
 }
 
-impl Interactor<GetUserByUsernameInput<'_>> for &GetUserByUsername {
+impl Interactor<GetUserByUsernameInput> for &GetUserByUsername {
     type Output = User;
     type Err = ErrKind<UserByUsernameNotFound>;
 
     #[instrument(skip_all)]
     async fn execute(
         self,
-        GetUserByUsernameInput {
-            username,
-            tx_manager,
-        }: GetUserByUsernameInput<'_>,
+        GetUserByUsernameInput { username }: GetUserByUsernameInput,
     ) -> Result<Self::Output, Self::Err> {
-        let reader = tx_manager.user_reader();
+        let reader = self.tx_manager.user_reader();
         let user = reader.get_by_username(username).await?;
         info!(%user.id, "User received");
 
@@ -107,19 +147,16 @@ impl Interactor<GetUserByUsernameInput<'_>> for &GetUserByUsername {
     }
 }
 
-impl Interactor<GetUsersInput<'_>> for &GetUsers {
+impl Interactor<GetUsersInput> for &GetUsers {
     type Output = Vec<User>;
     type Err = ErrKind<Infallible>;
 
     #[instrument(skip_all)]
     async fn execute(
         self,
-        GetUsersInput {
-            pagination,
-            tx_manager,
-        }: GetUsersInput<'_>,
+        GetUsersInput { pagination }: GetUsersInput,
     ) -> Result<Self::Output, Self::Err> {
-        let reader = tx_manager.user_reader();
+        let reader = self.tx_manager.user_reader();
         let users = reader.get_all(pagination).await?;
         info!(count = %users.len(), "Users received");
 
@@ -127,20 +164,24 @@ impl Interactor<GetUsersInput<'_>> for &GetUsers {
     }
 }
 
-impl Interactor<DeleteUserByIdInput<'_>> for &DeleteUserById {
+impl Interactor<DeleteUserByIdInput> for &DeleteUserById {
     type Output = ();
     type Err = ErrKind<UserByIdNotFound>;
 
     #[instrument(skip_all)]
     async fn execute(
         self,
-        DeleteUserByIdInput { id, tx_manager }: DeleteUserByIdInput<'_>,
+        DeleteUserByIdInput { id }: DeleteUserByIdInput,
     ) -> Result<Self::Output, Self::Err> {
-        tx_manager.begin().await?;
+        let tx_manager = self.tx_manager.begin().await?;
 
-        let repo = tx_manager.user_repo()?;
-        repo.delete_by_id(id).await?;
-        drop(repo);
+        if let Err(err) = {
+            let repo = tx_manager.user_repo();
+            repo.delete_by_id(id).await
+        } {
+            tx_manager.rollback().await?;
+            return Err(err);
+        }
 
         tx_manager.commit().await?;
         info!(%id, "User deleted");

@@ -1,28 +1,32 @@
 //! Transaction manager abstraction used by application interactors.
 //!
-//! Repository and reader objects borrow a concrete database connection or
-//! transaction. Exposing `user_reader` and `user_repo` from `TxManager` keeps
-//! those borrows tied to the transaction manager's lifetime (`'_`) instead of
-//! forcing controllers or interactors to know how infrastructure connections are
-//! stored.
+//! `TxManager` is the stable object injected into handlers. It can create
+//! readers from the regular database connection and can start a new transaction,
+//! but it does not store active transaction state inside itself.
 //!
-//! Readers are created from the regular database connection, while repositories
-//! that mutate data are created from the active transaction. This lets use cases
-//! explicitly start, commit, or roll back a transaction and then obtain repos
-//! that cannot outlive the manager that owns the underlying connection state.
+//! `ActiveTxManager` owns one active transaction. Repositories are created from
+//! this active object, so their lifetime is tied to the transaction owner instead
+//! of to the injected manager. This keeps transaction use explicit without
+//! requiring a mutable "dummy transaction" or shared mutable state in DI.
 
 use async_trait::async_trait;
 
-use super::errors::{BeginError, CommitError, RollbackError, TransactionNotBegin};
+use super::errors::{BeginError, CommitError, RollbackError};
 use crate::application::user::interfaces::{UserReader, UserRepo};
 
-/// Coordinates transaction lifecycle and creates scoped data access objects.
+/// Starts transactions and creates readers that do not need an active transaction.
 #[async_trait]
 pub trait TxManager: Send + Sync + 'static {
-    async fn begin(&mut self) -> Result<(), BeginError>;
-    async fn commit(&mut self) -> Result<(), CommitError>;
-    async fn rollback(&mut self) -> Result<(), RollbackError>;
+    async fn begin(&self) -> Result<Box<dyn ActiveTxManager>, BeginError>;
 
     fn user_reader(&self) -> Box<dyn UserReader + '_>;
-    fn user_repo(&self) -> Result<Box<dyn UserRepo + '_>, TransactionNotBegin>;
+}
+
+/// Owns an active transaction and creates repositories scoped to it.
+#[async_trait]
+pub trait ActiveTxManager: Send {
+    async fn commit(self: Box<Self>) -> Result<(), CommitError>;
+    async fn rollback(self: Box<Self>) -> Result<(), RollbackError>;
+
+    fn user_repo(&self) -> Box<dyn UserRepo + '_>;
 }
