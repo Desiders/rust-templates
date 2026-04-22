@@ -1,3 +1,9 @@
+//! API error code payload.
+//!
+//! `Code` is the stable domain representation used to build error responses.
+//! It keeps the numeric code, machine-readable name, and human-readable message
+//! together before the API layer serializes them into `ErrResponse`.
+
 use serde::Serialize;
 use std::{
     borrow::Cow,
