@@ -84,7 +84,7 @@ pub(super) fn interactors_registry(tx_manager: RegistryWithSync) -> RegistryWith
         scope(Request) [
             provide(
                 |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
-                    Ok(user::interactors::CreateUser::new(tx_manager))
+                    Ok(user::interactors::SaveUser::new(tx_manager))
                 }
             ),
             provide(

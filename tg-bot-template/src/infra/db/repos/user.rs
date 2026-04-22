@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait as _, SqlErr};
+use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait as _, sea_query::OnConflict};
 
 use crate::{
     application::user::interfaces::UserRepo,
@@ -22,7 +22,7 @@ impl<'a, Conn> SeaOrmUserRepo<'a, Conn> {
 
 #[async_trait]
 impl<Conn: ConnectionTrait> UserRepo for SeaOrmUserRepo<'_, Conn> {
-    async fn add(
+    async fn upsert(
         &self,
         User {
             tg_id,
@@ -31,24 +31,24 @@ impl<Conn: ConnectionTrait> UserRepo for SeaOrmUserRepo<'_, Conn> {
             updated_at,
         }: User,
     ) -> Result<User, ErrKind<UserAlreadyExists>> {
-        use users::{ActiveModel, Entity};
+        use users::{ActiveModel, Column, Entity};
 
         let model = ActiveModel {
             tg_id: Set(tg_id),
-            username: Set(username.clone()),
+            username: Set(username),
             created_at: Set(created_at),
             updated_at: Set(updated_at),
         };
 
         Entity::insert(model)
+            .on_conflict(
+                OnConflict::column(Column::TgId)
+                    .update_columns([Column::Username, Column::UpdatedAt])
+                    .to_owned(),
+            )
             .exec_with_returning(self.conn)
             .await
             .map(Into::into)
-            .map_err(|err| match err.sql_err() {
-                Some(SqlErr::UniqueConstraintViolation(_)) => {
-                    ErrKind::Expected(UserAlreadyExists { tg_id, username })
-                }
-                _ => ErrKind::Unexpected(err.into()),
-            })
+            .map_err(Into::into)
     }
 }

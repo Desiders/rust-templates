@@ -1,7 +1,7 @@
 use tracing::{info, instrument};
 
 use crate::{
-    application::{common::Interactor, db::tx_manager::TxManager, user::dtos},
+    application::{common::Interactor, db::tx_manager::TxManager},
     domain::{
         common::errors::ErrKind,
         user::{
@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-pub struct CreateUser {
+pub struct SaveUser {
     tx_manager: Box<dyn TxManager>,
 }
 
@@ -19,7 +19,7 @@ pub struct GetCurrentUser {
     tx_manager: Box<dyn TxManager>,
 }
 
-impl CreateUser {
+impl SaveUser {
     pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
         Self { tx_manager }
     }
@@ -31,29 +31,18 @@ impl GetCurrentUser {
     }
 }
 
-pub struct CreateUserInput {
-    pub user: dtos::CreateUser,
-}
-
-pub struct GetCurrentUserInput {
-    pub tg_id: i64,
-}
-
-impl Interactor<CreateUserInput> for &CreateUser {
+impl Interactor<User> for &SaveUser {
     type Output = User;
     type Err = ErrKind<UserAlreadyExists>;
 
     #[instrument(skip_all)]
-    async fn execute(
-        self,
-        CreateUserInput { user }: CreateUserInput,
-    ) -> Result<Self::Output, Self::Err> {
+    async fn execute(self, user: User) -> Result<Self::Output, Self::Err> {
         let tx_manager = self.tx_manager.begin().await?;
         let user = User::new(user.tg_id, user.username);
 
         let user = match {
             let repo = tx_manager.user_repo();
-            repo.add(user).await
+            repo.upsert(user).await
         } {
             Ok(user) => user,
             Err(err) => {
@@ -63,21 +52,18 @@ impl Interactor<CreateUserInput> for &CreateUser {
         };
 
         tx_manager.commit().await?;
-        info!(tg_id = user.tg_id, "User saved");
+        info!(tg_id = user.tg_id, "User upserted");
 
         Ok(user)
     }
 }
 
-impl Interactor<GetCurrentUserInput> for &GetCurrentUser {
+impl Interactor<i64> for &GetCurrentUser {
     type Output = User;
     type Err = ErrKind<UserByTgIdNotFound>;
 
     #[instrument(skip_all)]
-    async fn execute(
-        self,
-        GetCurrentUserInput { tg_id }: GetCurrentUserInput,
-    ) -> Result<Self::Output, Self::Err> {
+    async fn execute(self, tg_id: i64) -> Result<Self::Output, Self::Err> {
         let reader = self.tx_manager.user_reader();
         let user = reader.get_by_tg_id(tg_id).await?;
         info!(tg_id = user.tg_id, "Current user received");
