@@ -1,9 +1,9 @@
 //! Database errors exposed by the application layer.
 //!
-//! Application traits should not mention SeaORM, SQLx, or any other concrete
+//! Application traits should not mention `SeaORM`, `SQLx`, or any other concrete
 //! persistence library. Keeping these errors here preserves that boundary:
 //! interactors can depend on stable application error types, while infrastructure
-//! code is responsible for converting SeaORM/SQLx errors into them.
+//! code is responsible for converting `SeaORM`/`SQLx` errors into them.
 //!
 //! This also keeps repository and transaction-manager interfaces reusable if the
 //! storage backend changes later.
