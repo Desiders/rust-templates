@@ -1,6 +1,3 @@
 [workspace]
-members = [
-    "web-template",
-    "web-template-migration",
-]
+members = ["web-template", "web-template-migration"]
 resolver = "2"
