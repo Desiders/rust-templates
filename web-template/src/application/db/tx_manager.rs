@@ -16,7 +16,7 @@ use crate::application::user::interfaces::{UserReader, UserRepo};
 
 /// Starts transactions and creates readers that do not need an active transaction.
 #[async_trait]
-pub trait TxManager: Send + Sync + 'static {
+pub trait TxManager: Send + Sync {
     async fn begin(&self) -> Result<Box<dyn ActiveTxManager>, BeginError>;
 
     fn user_reader(&self) -> Box<dyn UserReader + '_>;
