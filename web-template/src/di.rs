@@ -114,9 +114,9 @@ pub(super) fn interactors_registry(tx_manager: RegistryWithSync) -> RegistryWith
     }
 }
 
-pub(super) fn init(interactors: RegistryWithSync, tx_manager: RegistryWithSync) -> Container {
+pub(super) fn init(interactors: RegistryWithSync) -> Container {
     let registry = async_registry! {
-        extend(tx_manager, interactors),
+        extend(interactors),
     };
     Container::new(registry)
 }

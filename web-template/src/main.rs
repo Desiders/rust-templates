@@ -34,8 +34,8 @@ async fn main() {
     let cfg_registry = di::cfg_registry(cfg);
     let db_registry = di::db_registry(cfg_registry);
     let tx_manager_registry = di::tx_manager_registry(db_registry);
-    let interactors_registry = di::interactors_registry(tx_manager_registry.clone());
-    let container = di::init(interactors_registry, tx_manager_registry);
+    let interactors_registry = di::interactors_registry(tx_manager_registry);
+    let container = di::init(interactors_registry);
 
     let router = controllers::router();
     let router = froodi::axum::setup_async_default(router, container.clone());
