@@ -7,7 +7,7 @@ use telers::{
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
-use crate::bot::handlers;
+use crate::bot::{handlers, middlewares};
 
 mod application;
 mod bot;
@@ -41,14 +41,15 @@ async fn main() {
     let interactors_registry = di::interactors_registry(tx_manager_registry);
     let container = di::init(interactors_registry);
 
-    let router = Router::new("main").on_message(|observer| {
-        observer.register(
-            Handler::new(handlers::start)
-                .filter(MessageType::one(Text))
-                .filter(Command::many(["start", "help"])),
-        )
-    });
-    let router = froodi::telers::setup_async_default(router, container.clone());
+    let router = froodi::telers::setup_async_default(Router::new("main"), container.clone())
+        .on_update(|observer| observer.register_outer_middleware(middlewares::CreateUser))
+        .on_message(|observer| {
+            observer.register(
+                Handler::new(handlers::start)
+                    .filter(MessageType::one(Text))
+                    .filter(Command::many(["start", "help"])),
+            )
+        });
 
     let dispatcher = Dispatcher::builder()
         .allowed_updates(router.resolve_used_update_types())

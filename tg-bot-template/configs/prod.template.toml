@@ -2,11 +2,11 @@
 token = "..."
 
 [logging]
-dirs = "info"
+dirs = "info,tg_bot_template::application::user::interactors=warn"
 
 [database]
 user = "..."
 password = "..."
 host = "tg_bot_template.postgres"
-port = 5433
+port = 5432
 database = "api"

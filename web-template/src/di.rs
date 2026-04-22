@@ -6,7 +6,7 @@ use froodi::{
 };
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{
     application::{db::tx_manager::TxManager, user},
@@ -33,6 +33,7 @@ pub(super) fn db_registry(cfg: Registry) -> RegistryWithSync {
                 let mut options = ConnectOptions::new(cfg.get_postgres_url());
                 options.sqlx_logging(false);
 
+                debug!("Creating database conn");
                 match Database::connect(options).await {
                     Ok(database_conn) => {
                         info!("Database conn created");
