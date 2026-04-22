@@ -1,3 +1,9 @@
+//! Small conversion shortcuts for `SeaORM` database errors.
+//!
+//! These `From<DbErr>` implementations let infrastructure code use `?` in
+//! places like `transaction.commit().await?` instead of writing repetitive
+//! `map_err` calls for every begin/commit/rollback/database operation.
+
 use sea_orm::DbErr;
 
 use crate::{
