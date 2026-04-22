@@ -39,11 +39,10 @@ async fn main() {
 
     let router = controllers::router();
     let router = froodi::axum::setup_async_default(router, container.clone());
-    let app = router;
 
     let shutdown = Arc::new(Notify::new());
     let _ = tokio::join!(
-        tokio::spawn(run_server(app, addr, shutdown.clone())),
+        tokio::spawn(run_server(router, addr, shutdown.clone())),
         tokio::spawn(utils::shutdown::handle(shutdown))
     );
 

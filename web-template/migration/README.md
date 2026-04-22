@@ -45,10 +45,9 @@
 - Generate models
     ```sh
     sea-orm-cli generate entity \
-        -o ../web-template/src/infra/db/models \
+        -o ../src/infra/db/models \
         --date-time-crate time \
         --with-copy-enums \
         --with-prelude none \
-        --compact-format \
-        && rm ../web-template/src/infra/db/models/mod.rs
+        --compact-format
     ```
