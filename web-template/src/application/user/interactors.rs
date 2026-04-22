@@ -67,32 +67,16 @@ impl DeleteUserById {
     }
 }
 
-pub struct AddUserInput {
-    pub user: User,
-}
-
-pub struct GetUserByIdInput {
-    pub id: Uuid,
-}
-
-pub struct GetUserByUsernameInput {
-    pub username: String,
-}
-
 pub struct GetUsersInput {
     pub pagination: Pagination,
 }
 
-pub struct DeleteUserByIdInput {
-    pub id: Uuid,
-}
-
-impl Interactor<AddUserInput> for &AddUser {
+impl Interactor<User> for &AddUser {
     type Output = User;
     type Err = ErrKind<UserAlreadyExists>;
 
     #[instrument(skip_all)]
-    async fn execute(self, AddUserInput { user }: AddUserInput) -> Result<Self::Output, Self::Err> {
+    async fn execute(self, user: User) -> Result<Self::Output, Self::Err> {
         let tx_manager = self.tx_manager.begin().await?;
 
         let user = match {
@@ -113,15 +97,12 @@ impl Interactor<AddUserInput> for &AddUser {
     }
 }
 
-impl Interactor<GetUserByIdInput> for &GetUserById {
+impl Interactor<Uuid> for &GetUserById {
     type Output = User;
     type Err = ErrKind<UserByIdNotFound>;
 
     #[instrument(skip_all)]
-    async fn execute(
-        self,
-        GetUserByIdInput { id }: GetUserByIdInput,
-    ) -> Result<Self::Output, Self::Err> {
+    async fn execute(self, id: Uuid) -> Result<Self::Output, Self::Err> {
         let reader = self.tx_manager.user_reader();
         let user = reader.get_by_id(id).await?;
         info!(%user.id, "User received");
@@ -130,15 +111,12 @@ impl Interactor<GetUserByIdInput> for &GetUserById {
     }
 }
 
-impl Interactor<GetUserByUsernameInput> for &GetUserByUsername {
+impl Interactor<String> for &GetUserByUsername {
     type Output = User;
     type Err = ErrKind<UserByUsernameNotFound>;
 
     #[instrument(skip_all)]
-    async fn execute(
-        self,
-        GetUserByUsernameInput { username }: GetUserByUsernameInput,
-    ) -> Result<Self::Output, Self::Err> {
+    async fn execute(self, username: String) -> Result<Self::Output, Self::Err> {
         let reader = self.tx_manager.user_reader();
         let user = reader.get_by_username(username).await?;
         info!(%user.id, "User received");
@@ -164,15 +142,12 @@ impl Interactor<GetUsersInput> for &GetUsers {
     }
 }
 
-impl Interactor<DeleteUserByIdInput> for &DeleteUserById {
+impl Interactor<Uuid> for &DeleteUserById {
     type Output = ();
     type Err = ErrKind<UserByIdNotFound>;
 
     #[instrument(skip_all)]
-    async fn execute(
-        self,
-        DeleteUserByIdInput { id }: DeleteUserByIdInput,
-    ) -> Result<Self::Output, Self::Err> {
+    async fn execute(self, id: Uuid) -> Result<Self::Output, Self::Err> {
         let tx_manager = self.tx_manager.begin().await?;
 
         if let Err(err) = {

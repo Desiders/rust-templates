@@ -17,9 +17,7 @@ use crate::{
         user::{
             dtos::CreateUser,
             interactors::{
-                AddUser, AddUserInput, DeleteUserById, DeleteUserByIdInput, GetUserById,
-                GetUserByIdInput, GetUserByUsername, GetUserByUsernameInput, GetUsers,
-                GetUsersInput,
+                AddUser, DeleteUserById, GetUserById, GetUserByUsername, GetUsers, GetUsersInput,
             },
         },
     },
@@ -39,12 +37,7 @@ async fn create(
     InjectTransient(interactor): InjectTransient<AddUser>,
     Json(CreateUser { id, username }): Json<CreateUser>,
 ) -> impl IntoResponse {
-    match interactor
-        .execute(AddUserInput {
-            user: User::new(id, username),
-        })
-        .await
-    {
+    match interactor.execute(User::new(id, username)).await {
         Ok(user) => (StatusCode::OK, Resp::Ok(user)),
         Err(err) => {
             error!(%err , "Add user error");
@@ -92,10 +85,7 @@ async fn get_by_username(
     InjectTransient(interactor): InjectTransient<GetUserByUsername>,
     Path(username): Path<String>,
 ) -> impl IntoResponse {
-    match interactor
-        .execute(GetUserByUsernameInput { username })
-        .await
-    {
+    match interactor.execute(username).await {
         Ok(user) => (StatusCode::OK, Resp::Ok(user)),
         Err(err) => {
             error!(%err , "Get user by username error");
@@ -122,7 +112,7 @@ async fn get_by_id(
     InjectTransient(interactor): InjectTransient<GetUserById>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match interactor.execute(GetUserByIdInput { id }).await {
+    match interactor.execute(id).await {
         Ok(user) => (StatusCode::OK, Resp::Ok(user)),
         Err(err) => {
             error!(%err , "Get user by id error");
@@ -149,7 +139,7 @@ async fn delete_by_id(
     InjectTransient(interactor): InjectTransient<DeleteUserById>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match interactor.execute(DeleteUserByIdInput { id }).await {
+    match interactor.execute(id).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
             error!(%err , "Delete user by id error");
