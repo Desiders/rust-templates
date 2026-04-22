@@ -1,0 +1,12 @@
+[bot]
+token = "..."
+
+[logging]
+dirs = "debug,froodi=info"
+
+[database]
+user = "..."
+password = "..."
+host = "127.0.0.1"
+port = 5433
+database = "api"

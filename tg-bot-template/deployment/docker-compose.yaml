@@ -1,0 +1,32 @@
+services:
+  postgres:
+    container_name: tg_bot_template.postgres
+    image: "postgres:18-alpine"
+    restart: "unless-stopped"
+    expose:
+      - "5432"
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    networks:
+      - postgres.network
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?error}
+      POSTGRES_USER: ${POSTGRES_USER:?error}
+      POSTGRES_DB: ${POSTGRES_DB:?error}
+    volumes:
+      - postgres.data:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 60s
+      retries: 5
+      start_period: 10s
+    profiles:
+      - default
+      - dev
+
+volumes:
+  postgres.data: {}
+
+networks:
+  postgres.network: {}

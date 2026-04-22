@@ -1,0 +1,18 @@
+[package]
+name = "tg_bot_template"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+froodi = { version = "1.0.0-beta.17", features = ["async", "thread_safe", "telers"] }
+sea-orm = { version = "1.1", features = ["macros", "sqlx-postgres", "runtime-tokio-rustls", "with-time"] }
+serde = { version = "1.0", features = ["derive"] }
+telers = { version = ">=1.0.0-beta.1, <1.0.0", features = ["default_signal", "rustls-tls"] }
+thiserror = "2.0"
+time = { version = "0.3", features = ["serde-human-readable"] }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+toml = "1.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

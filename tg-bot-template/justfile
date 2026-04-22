@@ -1,0 +1,17 @@
+help:
+    just -l
+
+fmt:
+    cargo +nightly fmt --package tg_bot_template
+
+lint:
+    cargo clippy --package tg_bot_template --all-features -- -W clippy::pedantic
+
+run:
+    cargo build --bin tg_bot_template && cargo run --bin tg_bot_template
+
+@run-dev:
+    CONFIG_PATH='configs/dev.toml' just run
+
+@docker-dev-up:
+    docker compose -f deployment/docker-compose.yaml --env-file .env --profile dev up -d

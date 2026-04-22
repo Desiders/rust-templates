@@ -1,0 +1,12 @@
+[bot]
+token = "..."
+
+[logging]
+dirs = "info"
+
+[database]
+user = "..."
+password = "..."
+host = "tg_bot_template.postgres"
+port = 5433
+database = "api"
