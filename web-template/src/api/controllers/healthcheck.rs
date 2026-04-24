@@ -1,6 +1,5 @@
-use axum::{Router, http::StatusCode, response::IntoResponse, routing::get};
+use axum::{Router, response::IntoResponse, routing::get};
 use serde::Serialize;
-use std::convert::Infallible;
 use tracing::instrument;
 use utoipa::OpenApi;
 
@@ -18,12 +17,9 @@ struct Status {
 )]
 #[instrument(skip_all)]
 async fn status() -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        Resp::<_, Infallible>::Ok(Status {
-            status: "OK".into(),
-        }),
-    )
+    Resp::ok(Status {
+        status: "OK".into(),
+    })
 }
 
 #[utoipa::path(get, path = "ping",
@@ -33,7 +29,7 @@ async fn status() -> impl IntoResponse {
 )]
 #[instrument(skip_all)]
 async fn ping() -> impl IntoResponse {
-    (StatusCode::OK, Resp::<_, Infallible>::Ok("pong"))
+    Resp::ok("pong")
 }
 
 #[derive(OpenApi)]

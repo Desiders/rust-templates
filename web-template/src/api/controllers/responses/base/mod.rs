@@ -5,34 +5,42 @@
 
 mod serializer;
 
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use serde::Serialize;
 use serializer::{JsonSerializer, Serializer};
-use std::borrow::Cow;
+use std::{borrow::Cow, marker::PhantomData};
 use utoipa::ToSchema;
 
 use crate::domain::code::{entities::Code, interfaces::IntoCode};
 
 /// Controller return type that can represent either a successful payload or an
 /// error that can be converted into an API code.
-pub enum Resp<R: Serialize, E: IntoCode> {
-    Ok(R),
-    Err(E),
-}
+pub enum Resp {}
 
-impl<R: Serialize, E: IntoCode> Resp<R, E> {
-    #[allow(private_bounds)]
-    pub fn with_serializer<S: Serializer>(self) -> Response {
-        match self {
-            Resp::Ok(data) => S::ok(OkResponse::from(data)),
-            Resp::Err(err) => S::err(ErrResponse::from(err)),
-        }
+impl Resp {
+    pub fn with_serializer<S: Serializer>() -> RespWithSerializer<S> {
+        RespWithSerializer(PhantomData)
+    }
+
+    pub fn ok(data: impl Serialize) -> Response {
+        Self::with_serializer::<JsonSerializer>().ok(data)
+    }
+
+    pub fn err(err: impl IntoCode) -> Response {
+        Self::with_serializer::<JsonSerializer>().err(err)
     }
 }
 
-impl<R: Serialize, E: IntoCode> IntoResponse for Resp<R, E> {
-    fn into_response(self) -> Response {
-        self.with_serializer::<JsonSerializer>()
+pub struct RespWithSerializer<S>(PhantomData<S>);
+
+#[allow(clippy::unused_self)]
+impl<S: Serializer> RespWithSerializer<S> {
+    pub fn ok(self, data: impl Serialize) -> Response {
+        S::ok(OkResponse::from(data))
+    }
+
+    pub fn err(self, err: impl IntoCode) -> Response {
+        S::err(ErrResponse::from(err))
     }
 }
 

@@ -38,13 +38,14 @@ async fn create(
     Json(CreateUser { id, username }): Json<CreateUser>,
 ) -> impl IntoResponse {
     match interactor.execute(User::new(id, username)).await {
-        Ok(user) => (StatusCode::OK, Resp::Ok(user)),
+        Ok(user) => (StatusCode::CREATED, Resp::ok(user)),
         Err(err) => {
-            error!(%err , "Add user error");
-            match err {
-                ErrKind::Expected(_) => (StatusCode::CONFLICT, Resp::Err(err)),
-                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
-            }
+            error!(%err, "Add user error");
+            let status_code = match err {
+                ErrKind::Expected(_) => StatusCode::CONFLICT,
+                ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status_code, Resp::err(err))
         }
     }
 }
@@ -62,10 +63,10 @@ async fn get_all(
     Query(pagination): Query<Pagination>,
 ) -> impl IntoResponse {
     match interactor.execute(GetUsersInput { pagination }).await {
-        Ok(users) => (StatusCode::OK, Resp::Ok(users)),
+        Ok(users) => (StatusCode::OK, Resp::ok(users)),
         Err(err) => {
-            error!(%err , "Get users error");
-            (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err))
+            error!(%err, "Get users error");
+            (StatusCode::INTERNAL_SERVER_ERROR, Resp::err(err))
         }
     }
 }
@@ -86,13 +87,14 @@ async fn get_by_username(
     Path(username): Path<String>,
 ) -> impl IntoResponse {
     match interactor.execute(username).await {
-        Ok(user) => (StatusCode::OK, Resp::Ok(user)),
+        Ok(user) => (StatusCode::OK, Resp::ok(user)),
         Err(err) => {
-            error!(%err , "Get user by username error");
-            match err {
-                ErrKind::Expected(_) => (StatusCode::NOT_FOUND, Resp::Err(err)),
-                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
-            }
+            error!(%err, "Get user by username error");
+            let status_code = match err {
+                ErrKind::Expected(_) => StatusCode::NOT_FOUND,
+                ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status_code, Resp::err(err))
         }
     }
 }
@@ -113,13 +115,14 @@ async fn get_by_id(
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
     match interactor.execute(id).await {
-        Ok(user) => (StatusCode::OK, Resp::Ok(user)),
+        Ok(user) => (StatusCode::OK, Resp::ok(user)),
         Err(err) => {
-            error!(%err , "Get user by id error");
-            match err {
-                ErrKind::Expected(_) => (StatusCode::NOT_FOUND, Resp::Err(err)),
-                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
-            }
+            error!(%err, "Get user by id error");
+            let status_code = match err {
+                ErrKind::Expected(_) => StatusCode::NOT_FOUND,
+                ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status_code, Resp::err(err))
         }
     }
 }
@@ -142,12 +145,12 @@ async fn delete_by_id(
     match interactor.execute(id).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
-            error!(%err , "Delete user by id error");
-            match err {
-                ErrKind::Expected(_) => (StatusCode::NOT_FOUND, Resp::<(), _>::Err(err)),
-                ErrKind::Unexpected(_) => (StatusCode::INTERNAL_SERVER_ERROR, Resp::Err(err)),
-            }
-            .into_response()
+            error!(%err, "Delete user by id error");
+            let status_code = match err {
+                ErrKind::Expected(_) => StatusCode::NOT_FOUND,
+                ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status_code, Resp::err(err)).into_response()
         }
     }
 }
