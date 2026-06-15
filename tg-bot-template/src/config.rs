@@ -1,3 +1,4 @@
+use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use std::{
     env::{self, VarError},
@@ -8,7 +9,7 @@ use thiserror::Error;
 
 #[derive(Deserialize, Clone)]
 pub struct Bot {
-    pub token: Box<str>,
+    pub token: SecretString,
 }
 
 #[derive(Deserialize, Clone)]
@@ -21,7 +22,7 @@ pub struct Database {
     pub host: Box<str>,
     pub port: i16,
     pub user: Box<str>,
-    pub password: Box<str>,
+    pub password: SecretString,
     #[allow(clippy::struct_field_names)]
     pub database: Box<str>,
 }
@@ -31,7 +32,7 @@ impl Database {
         format!(
             "postgres://{user}:{password}@{host}:{port}/{database}",
             user = self.user,
-            password = self.password,
+            password = self.password.expose_secret(),
             host = self.host,
             port = self.port,
             database = self.database,

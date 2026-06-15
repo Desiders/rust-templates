@@ -1,3 +1,4 @@
+use secrecy::ExposeSecret;
 use telers::{
     Bot, Dispatcher, Router,
     enums::MessageType::Text,
@@ -33,7 +34,7 @@ async fn main() {
         "Loaded config",
     );
 
-    let bot = Bot::new(cfg.bot.token.clone());
+    let bot = Bot::new(cfg.bot.token.expose_secret());
 
     let cfg_registry = di::cfg_registry(cfg);
     let db_registry = di::db_registry(cfg_registry);
