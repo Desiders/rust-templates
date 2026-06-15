@@ -7,6 +7,7 @@ use utoipa_rapidoc::RapiDoc;
 pub(super) mod responses;
 
 mod default;
+mod fallback;
 mod healthcheck;
 mod users;
 
@@ -26,4 +27,5 @@ pub fn router() -> Router {
         .merge(healthcheck::router())
         .nest("/users", users::router())
         .merge(RapiDoc::with_openapi("/api-docs/openapi.json", Doc::openapi()).path("/docs"))
+        .fallback(fallback::not_found)
 }

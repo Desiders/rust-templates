@@ -13,6 +13,7 @@ use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
 use std::convert::Infallible;
 
 use super::{constants::UNEXPECTED, entities::Code};
+use crate::api::errors::PathNotFound;
 use crate::domain::{
     common::errors::ErrKind,
     user::errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
@@ -69,6 +70,7 @@ code_entity! {
     JsonRejection => 1001,
     PathRejection => 1002,
     QueryRejection => 1003,
+    PathNotFound => 1007,
 }
 code_entity! {
     UserAlreadyExists => 1004,
