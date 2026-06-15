@@ -6,10 +6,8 @@
 
 use sea_orm::DbErr;
 
-use crate::{
-    application::db::errors::{BeginError, CommitError, RollbackError},
-    domain::common::errors::ErrKind,
-};
+use crate::application::db::errors::{BeginError, CommitError, RollbackError};
+use crate::into_unexpected;
 
 impl From<DbErr> for BeginError {
     fn from(err: DbErr) -> Self {
@@ -29,8 +27,6 @@ impl From<DbErr> for RollbackError {
     }
 }
 
-impl<E> From<DbErr> for ErrKind<E> {
-    fn from(err: DbErr) -> Self {
-        ErrKind::Unexpected(err.into())
-    }
+into_unexpected! {
+    DbErr,
 }
