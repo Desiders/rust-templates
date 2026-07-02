@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use tokio::{signal, sync::Notify};
+use tokio::signal;
+use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-pub async fn handle(shutdown: Arc<Notify>) {
+pub async fn handle(shutdown: CancellationToken) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -25,5 +25,5 @@ pub async fn handle(shutdown: Arc<Notify>) {
     }
 
     warn!("Stop application");
-    shutdown.notify_waiters();
+    shutdown.cancel();
 }

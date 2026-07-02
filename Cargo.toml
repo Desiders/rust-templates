@@ -1,3 +1,8 @@
 [workspace]
-members = ["web-template", "web-template/migration", "tg-bot-template", "tg-bot-template/migration"]
+members = [
+    "tg-bot-template",
+    "tg-bot-template/migration",
+    "web-template",
+    "web-template/migration",
+]
 resolver = "2"

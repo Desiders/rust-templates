@@ -1,6 +1,7 @@
 use axum::Router;
-use std::{net::SocketAddr, sync::Arc};
-use tokio::{net::TcpListener, sync::Notify};
+use std::net::SocketAddr;
+use tokio::net::TcpListener;
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
@@ -40,7 +41,7 @@ async fn main() {
     let router = controllers::router();
     let router = froodi::axum::setup_async_default(router, container.clone());
 
-    let shutdown = Arc::new(Notify::new());
+    let shutdown = CancellationToken::new();
     let _ = tokio::join!(
         tokio::spawn(run_server(router, addr, shutdown.clone())),
         tokio::spawn(utils::shutdown::handle(shutdown))
@@ -50,11 +51,11 @@ async fn main() {
     info!("Container closed");
 }
 
-async fn run_server(app: Router, addr: SocketAddr, shutdown: Arc<Notify>) {
+async fn run_server(app: Router, addr: SocketAddr, shutdown: CancellationToken) {
     info!(%addr, "Run application");
     let listener = TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app)
-        .with_graceful_shutdown(async move { shutdown.notified().await })
+        .with_graceful_shutdown(async move { shutdown.cancelled().await })
         .await
         .unwrap();
 }
