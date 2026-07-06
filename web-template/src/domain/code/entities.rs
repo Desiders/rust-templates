@@ -23,3 +23,7 @@ impl Display for Code {
         write!(f, "{} ({})", self.name, self.code)
     }
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("Unexpected error occurred")]
+pub struct Unexpected;

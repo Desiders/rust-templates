@@ -13,7 +13,7 @@ use super::{ErrResponse, OkResponse};
 /// emitted as JSON or another representation.
 pub trait Serializer {
     fn ok<R: Serialize>(resp: OkResponse<R>) -> Response;
-    fn err(err: ErrResponse) -> Response;
+    fn err<E>(err: ErrResponse<E>) -> Response;
 }
 
 /// JSON response serializer for the API response structure.
@@ -24,7 +24,7 @@ impl Serializer for JsonSerializer {
         Json(resp).into_response()
     }
 
-    fn err(err: ErrResponse) -> Response {
+    fn err<E>(err: ErrResponse<E>) -> Response {
         Json(err).into_response()
     }
 }

@@ -9,9 +9,18 @@ use axum::response::Response;
 use serde::Serialize;
 use serializer::{JsonSerializer, Serializer};
 use std::{borrow::Cow, marker::PhantomData};
-use utoipa::ToSchema;
+use utoipa::{
+    ToSchema,
+    openapi::{
+        RefOr, Schema,
+        schema::{Object, ObjectBuilder, Type},
+    },
+};
 
-use crate::domain::code::{entities::Code, interfaces::IntoCode};
+use crate::domain::code::{
+    entities::Code,
+    interfaces::{CodeEntity, IntoCode},
+};
 
 /// Controller return type that can represent either a successful payload or an
 /// error that can be converted into an API code.
@@ -44,11 +53,18 @@ impl<S: Serializer> RespWithSerializer<S> {
     }
 }
 
-/// Successful JSON response structure.
-///
-/// Serialized as `{ "is_success": true, "result": ... }`.
+fn success_flag() -> Object {
+    ObjectBuilder::new()
+        .schema_type(Type::Boolean)
+        .enum_values(Some([true]))
+        .examples([true])
+        .build()
+}
+
+/// Successful JSON response structure
 #[derive(Serialize, ToSchema)]
 pub struct OkResponse<R: ?Sized> {
+    #[schema(schema_with = success_flag)]
     is_success: bool,
     result: R,
 }
@@ -62,18 +78,18 @@ impl<R: Serialize> From<R> for OkResponse<R> {
     }
 }
 
-/// Error JSON response structure.
-///
-/// Serialized as `{ "is_success": false, "code": ..., "name": ..., "message": ... }`.
-#[derive(Serialize, ToSchema)]
-pub struct ErrResponse {
+/// Error JSON response structure
+#[derive(Serialize)]
+pub struct ErrResponse<E> {
     is_success: bool,
     code: u16,
     name: &'static str,
     message: Cow<'static, str>,
+    #[serde(skip)]
+    _kind: PhantomData<fn() -> E>,
 }
 
-impl<E: IntoCode> From<E> for ErrResponse {
+impl<E: IntoCode> From<E> for ErrResponse<E> {
     fn from(err: E) -> Self {
         let Code {
             code,
@@ -85,6 +101,48 @@ impl<E: IntoCode> From<E> for ErrResponse {
             name,
             message,
             is_success: false,
+            _kind: PhantomData,
         }
     }
 }
+
+impl<E: CodeEntity> utoipa::__dev::ComposeSchema for ErrResponse<E> {
+    fn compose(_generics: Vec<RefOr<Schema>>) -> RefOr<Schema> {
+        ObjectBuilder::new()
+            .description(Some(format!("Error response: {} ({})", E::NAME, E::CODE)))
+            .property(
+                "is_success",
+                ObjectBuilder::new()
+                    .schema_type(Type::Boolean)
+                    .enum_values(Some([false]))
+                    .examples([false]),
+            )
+            .required("is_success")
+            .property(
+                "code",
+                ObjectBuilder::new()
+                    .schema_type(Type::Integer)
+                    .enum_values(Some([E::CODE]))
+                    .examples([E::CODE]),
+            )
+            .required("code")
+            .property(
+                "name",
+                ObjectBuilder::new()
+                    .schema_type(Type::String)
+                    .enum_values(Some([E::NAME]))
+                    .examples([E::NAME]),
+            )
+            .required("name")
+            .property(
+                "message",
+                ObjectBuilder::new()
+                    .schema_type(Type::String)
+                    .description(Some("Human-readable error message")),
+            )
+            .required("message")
+            .into()
+    }
+}
+
+impl<E: CodeEntity> ToSchema for ErrResponse<E> {}

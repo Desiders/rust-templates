@@ -15,7 +15,7 @@ use axum::{
 };
 use serde::de::DeserializeOwned;
 
-use crate::api::controllers::responses::base::Resp;
+use crate::api::{controllers::responses::base::Resp, errors};
 
 pub struct Json<T>(pub T);
 pub struct Path<T>(pub T);
@@ -31,7 +31,7 @@ where
     async fn from_request(req: axum::extract::Request, state: &S) -> Result<Self, Self::Rejection> {
         match axum::Json::<T>::from_request(req, state).await {
             Ok(axum::Json(value)) => Ok(Self(value)),
-            Err(err) => Err((err.status(), Resp::err(err)).into_response()),
+            Err(err) => Err((err.status(), Resp::err(errors::JsonRejection(err))).into_response()),
         }
     }
 }
@@ -46,7 +46,7 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         match axum::extract::Path::<T>::from_request_parts(parts, state).await {
             Ok(axum::extract::Path(value)) => Ok(Self(value)),
-            Err(err) => Err((err.status(), Resp::err(err)).into_response()),
+            Err(err) => Err((err.status(), Resp::err(errors::PathRejection(err))).into_response()),
         }
     }
 }
@@ -61,7 +61,7 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         match axum::extract::Query::<T>::from_request_parts(parts, state).await {
             Ok(axum::extract::Query(value)) => Ok(Self(value)),
-            Err(err) => Err((err.status(), Resp::err(err)).into_response()),
+            Err(err) => Err((err.status(), Resp::err(errors::QueryRejection(err))).into_response()),
         }
     }
 }

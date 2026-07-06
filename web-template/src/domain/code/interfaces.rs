@@ -7,17 +7,31 @@
 //!
 //! The concrete mappings live here so response serializers do not need to know
 //! about every domain error type. Expected errors keep their own public code,
-//! while unexpected errors are intentionally collapsed into `UNEXPECTED`.
+//! while unexpected errors are intentionally collapsed into [`Unexpected`].
+//!
+//! Each registered error also gets a compile-time [`CodeEntity`] impl, which
+//! `ErrResponse<E>` uses to pin the error's `code`/`name` in the `OpenAPI`
+//! schema. Foreign error types cannot be registered directly (orphan rule);
+//! wrap them in local newtypes first (see `crate::api::errors`).
 
-use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
 use std::convert::Infallible;
 
-use super::{constants::UNEXPECTED, entities::Code};
-use crate::api::errors::PathNotFound;
+use super::entities::{Code, Unexpected};
+use crate::api::errors::{JsonRejection, PathNotFound, PathRejection, QueryRejection};
 use crate::domain::{
     common::errors::ErrKind,
     user::errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
 };
+
+/// Compile-time half of the error-code registry.
+///
+/// `CODE`/`NAME` are what `ErrResponse<E>` pins in the generated `OpenAPI`
+/// schema; `IntoCode` produces the same values at runtime, so docs and wire
+/// format cannot drift apart.
+pub trait CodeEntity {
+    const CODE: u16;
+    const NAME: &'static str;
+}
 
 pub trait IntoCode {
     #[allow(clippy::wrong_self_convention)]
@@ -34,46 +48,57 @@ impl<E: IntoCode> IntoCode for ErrKind<E> {
     fn into_code(&self) -> Code {
         match self {
             ErrKind::Expected(err) => err.into_code(),
-            ErrKind::Unexpected(_) => UNEXPECTED,
+            ErrKind::Unexpected(_) => Unexpected.into_code(),
         }
     }
 }
 
 impl IntoCode for anyhow::Error {
     fn into_code(&self) -> Code {
-        UNEXPECTED
+        Unexpected.into_code()
     }
 }
 
-/// Implements `IntoCode` for errors whose public name matches the Rust type.
-///
-/// The macro keeps code mappings compact while preserving one explicit numeric
-/// code per error type. The response name is generated with `stringify!`, and
-/// the message still comes from the error's `Display` implementation.
 macro_rules! code_entity {
-        ($($name:ident => $code:expr),* $(,)?) => {
-            $(
-                impl IntoCode for $name {
-                    fn into_code(&self) -> Code {
-                        Code {
-                            code: $code,
-                            name: stringify!($name),
-                            message: self.to_string().into(),
-                        }
+    ($($name:ident => $code:expr),* $(,)?) => {
+        $(
+            impl CodeEntity for $name {
+                const CODE: u16 = $code;
+                const NAME: &'static str = stringify!($name);
+            }
+
+            impl IntoCode for $name {
+                fn into_code(&self) -> Code {
+                    Code {
+                        code: <$name as CodeEntity>::CODE,
+                        name: <$name as CodeEntity>::NAME,
+                        message: self.to_string().into(),
                     }
                 }
-            )*
-        };
-    }
+            }
+
+            impl utoipa::PartialSchema for $name {
+                fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+                    utoipa::openapi::schema::ObjectBuilder::new().into()
+                }
+            }
+
+            impl utoipa::ToSchema for $name {
+                fn name() -> std::borrow::Cow<'static, str> {
+                    std::borrow::Cow::Borrowed(<$name as CodeEntity>::NAME)
+                }
+            }
+        )*
+    };
+}
 
 code_entity! {
+    Unexpected => 1000,
     JsonRejection => 1001,
     PathRejection => 1002,
     QueryRejection => 1003,
-    PathNotFound => 1007,
-}
-code_entity! {
     UserAlreadyExists => 1004,
     UserByIdNotFound => 1005,
     UserByUsernameNotFound => 1006,
+    PathNotFound => 1007,
 }

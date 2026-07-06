@@ -11,7 +11,10 @@ use uuid::Uuid;
 
 use super::responses::base::{ErrResponse, OkResponse, Resp};
 use crate::{
-    api::extractors::responses::{Json, Path, Query},
+    api::{
+        errors::{JsonRejection, PathRejection, QueryRejection},
+        extractors::responses::{Json, Path, Query},
+    },
     application::{
         common::{entities::Pagination, interactor::Interactor},
         user::{
@@ -21,15 +24,23 @@ use crate::{
             },
         },
     },
-    domain::{common::errors::ErrKind, user::entities::User},
+    domain::{
+        code::entities::Unexpected,
+        common::errors::ErrKind,
+        user::{
+            entities::User,
+            errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
+        },
+    },
 };
 
 #[utoipa::path(post, path = "",
     request_body = CreateUser,
     responses(
         (status = StatusCode::CREATED, body = OkResponse<User>, description = "User created successfully"),
-        (status = StatusCode::CONFLICT, body = ErrResponse, description = "User already exists"),
-        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+        (status = StatusCode::BAD_REQUEST, body = ErrResponse<JsonRejection>, description = "Malformed request body"),
+        (status = StatusCode::CONFLICT, body = ErrResponse<UserAlreadyExists>, description = "User already exists"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse<Unexpected>, description = "Unexpected error occurred"),
     ),
 )]
 #[instrument(skip_all)]
@@ -54,7 +65,8 @@ async fn create(
     params(Pagination),
     responses(
         (status = StatusCode::OK, body = OkResponse<Vec<User>>, description = "Users received successfully"),
-        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+        (status = StatusCode::BAD_REQUEST, body = ErrResponse<QueryRejection>, description = "Invalid query parameters"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse<Unexpected>, description = "Unexpected error occurred"),
     ),
 )]
 #[instrument(skip_all)]
@@ -77,8 +89,9 @@ async fn get_all(
     ),
     responses(
         (status = StatusCode::OK, body = OkResponse<User>, description = "User received successfully"),
-        (status = StatusCode::NOT_FOUND, body = ErrResponse, description = "User not found"),
-        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+        (status = StatusCode::BAD_REQUEST, body = ErrResponse<PathRejection>, description = "Invalid path parameters"),
+        (status = StatusCode::NOT_FOUND, body = ErrResponse<UserByUsernameNotFound>, description = "User not found"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse<Unexpected>, description = "Unexpected error occurred"),
     ),
 )]
 #[instrument(skip_all)]
@@ -105,8 +118,9 @@ async fn get_by_username(
     ),
     responses(
         (status = StatusCode::OK, body = OkResponse<User>, description = "User received successfully"),
-        (status = StatusCode::NOT_FOUND, body = ErrResponse, description = "User not found"),
-        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+        (status = StatusCode::BAD_REQUEST, body = ErrResponse<PathRejection>, description = "Invalid path parameters"),
+        (status = StatusCode::NOT_FOUND, body = ErrResponse<UserByIdNotFound>, description = "User not found"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse<Unexpected>, description = "Unexpected error occurred"),
     ),
 )]
 #[instrument(skip_all)]
@@ -133,8 +147,9 @@ async fn get_by_id(
     ),
     responses(
         (status = StatusCode::NO_CONTENT, description = "User deleted successfully"),
-        (status = StatusCode::NOT_FOUND, body = ErrResponse, description = "User not found"),
-        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse, description = "Unexpected error occurred"),
+        (status = StatusCode::BAD_REQUEST, body = ErrResponse<PathRejection>, description = "Invalid path parameters"),
+        (status = StatusCode::NOT_FOUND, body = ErrResponse<UserByIdNotFound>, description = "User not found"),
+        (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse<Unexpected>, description = "Unexpected error occurred"),
     ),
 )]
 #[instrument(skip_all)]
