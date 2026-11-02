@@ -17,4 +17,4 @@ pub struct PathRejection(#[from] pub rejection::PathRejection);
 
 #[derive(Debug, Error)]
 #[error(transparent)]
-pub struct QueryRejection(#[from] pub rejection::QueryRejection);
+pub struct QueryRejection(#[from] pub axum_extra::extract::QueryRejection);
