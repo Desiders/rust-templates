@@ -9,7 +9,11 @@ use crate::infra::db::models::users;
 pub struct User {
     pub id: Uuid,
     pub username: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String, format = DateTime)]
     pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String, format = DateTime)]
     pub updated_at: OffsetDateTime,
 }
 

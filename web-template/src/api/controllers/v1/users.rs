@@ -1,7 +1,7 @@
 use axum::{
     Router,
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
 use froodi::InjectTransient;
@@ -9,7 +9,7 @@ use tracing::{error, instrument};
 use utoipa::OpenApi;
 use uuid::Uuid;
 
-use super::responses::base::{ErrResponse, OkResponse, Resp};
+use crate::api::responses::{ErrResponse, OkResponse, Resp};
 use crate::{
     api::{
         errors::{JsonRejection, PathRejection, QueryRejection},
@@ -34,11 +34,15 @@ use crate::{
     },
 };
 
-#[utoipa::path(post, path = "",
+#[utoipa::path(post, path = "/users",
+    operation_id = "create_user",
     request_body = CreateUser,
     responses(
         (status = StatusCode::CREATED, body = OkResponse<User>, description = "User created successfully"),
-        (status = StatusCode::BAD_REQUEST, body = ErrResponse<JsonRejection>, description = "Malformed request body"),
+        (status = StatusCode::BAD_REQUEST, body = ErrResponse<JsonRejection>, description = "Malformed JSON"),
+        (status = StatusCode::PAYLOAD_TOO_LARGE, body = ErrResponse<JsonRejection>, description = "Request body exceeds the limit"),
+        (status = StatusCode::UNSUPPORTED_MEDIA_TYPE, body = ErrResponse<JsonRejection>, description = "Content-Type must be application/json"),
+        (status = StatusCode::UNPROCESSABLE_ENTITY, body = ErrResponse<JsonRejection>, description = "JSON does not match the request type"),
         (status = StatusCode::CONFLICT, body = ErrResponse<UserAlreadyExists>, description = "User already exists"),
         (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse<Unexpected>, description = "Unexpected error occurred"),
     ),
@@ -46,22 +50,23 @@ use crate::{
 #[instrument(skip_all)]
 async fn create(
     InjectTransient(interactor): InjectTransient<AddUser>,
-    Json(CreateUser { id, username }): Json<CreateUser>,
-) -> impl IntoResponse {
-    match interactor.execute(User::new(id, username)).await {
-        Ok(user) => (StatusCode::CREATED, Resp::ok(user)),
+    Json(body): Json<CreateUser>,
+) -> Response {
+    match interactor.execute(body).await {
+        Ok(user) => (StatusCode::CREATED, Resp::ok(user)).into_response(),
         Err(err) => {
             error!(%err, "Add user error");
-            let status_code = match err {
+            let status_code = match &err {
                 ErrKind::Expected(_) => StatusCode::CONFLICT,
                 ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
             };
-            (status_code, Resp::err(err))
+            (status_code, Resp::err(err)).into_response()
         }
     }
 }
 
-#[utoipa::path(get, path = "",
+#[utoipa::path(get, path = "/users",
+    operation_id = "list_users",
     params(Pagination),
     responses(
         (status = StatusCode::OK, body = OkResponse<Vec<User>>, description = "Users received successfully"),
@@ -73,17 +78,18 @@ async fn create(
 async fn get_all(
     InjectTransient(interactor): InjectTransient<GetUsers>,
     Query(pagination): Query<Pagination>,
-) -> impl IntoResponse {
+) -> Response {
     match interactor.execute(GetUsersInput { pagination }).await {
-        Ok(users) => (StatusCode::OK, Resp::ok(users)),
+        Ok(users) => Resp::ok(users),
         Err(err) => {
             error!(%err, "Get users error");
-            (StatusCode::INTERNAL_SERVER_ERROR, Resp::err(err))
+            (StatusCode::INTERNAL_SERVER_ERROR, Resp::err(err)).into_response()
         }
     }
 }
 
-#[utoipa::path(get, path = "/@{username}",
+#[utoipa::path(get, path = "/users/@{username}",
+    operation_id = "get_user_by_username",
     params(
         ("username" = String, Path, description = "Username"),
     ),
@@ -98,21 +104,22 @@ async fn get_all(
 async fn get_by_username(
     InjectTransient(interactor): InjectTransient<GetUserByUsername>,
     Path(username): Path<String>,
-) -> impl IntoResponse {
+) -> Response {
     match interactor.execute(username).await {
-        Ok(user) => (StatusCode::OK, Resp::ok(user)),
+        Ok(user) => Resp::ok(user),
         Err(err) => {
             error!(%err, "Get user by username error");
-            let status_code = match err {
+            let status_code = match &err {
                 ErrKind::Expected(_) => StatusCode::NOT_FOUND,
                 ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
             };
-            (status_code, Resp::err(err))
+            (status_code, Resp::err(err)).into_response()
         }
     }
 }
 
-#[utoipa::path(get, path = "/{id}",
+#[utoipa::path(get, path = "/users/{id}",
+    operation_id = "get_user",
     params(
         ("id" = Uuid, Path, description = "User UUID v7"),
     ),
@@ -127,21 +134,22 @@ async fn get_by_username(
 async fn get_by_id(
     InjectTransient(interactor): InjectTransient<GetUserById>,
     Path(id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> Response {
     match interactor.execute(id).await {
-        Ok(user) => (StatusCode::OK, Resp::ok(user)),
+        Ok(user) => Resp::ok(user),
         Err(err) => {
             error!(%err, "Get user by id error");
-            let status_code = match err {
+            let status_code = match &err {
                 ErrKind::Expected(_) => StatusCode::NOT_FOUND,
                 ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
             };
-            (status_code, Resp::err(err))
+            (status_code, Resp::err(err)).into_response()
         }
     }
 }
 
-#[utoipa::path(delete, path = "/{id}",
+#[utoipa::path(delete, path = "/users/{id}",
+    operation_id = "delete_user",
     params(
         ("id" = Uuid, Path, description = "User UUID v7"),
     ),
@@ -156,12 +164,12 @@ async fn get_by_id(
 async fn delete_by_id(
     InjectTransient(interactor): InjectTransient<DeleteUserById>,
     Path(id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> Response {
     match interactor.execute(id).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
             error!(%err, "Delete user by id error");
-            let status_code = match err {
+            let status_code = match &err {
                 ErrKind::Expected(_) => StatusCode::NOT_FOUND,
                 ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
             };
@@ -172,11 +180,11 @@ async fn delete_by_id(
 
 #[derive(OpenApi)]
 #[openapi(paths(create, get_all, get_by_username, get_by_id, delete_by_id))]
-pub(super) struct Doc;
+pub(crate) struct Doc;
 
 pub(super) fn router() -> Router {
     Router::new()
-        .route("/", post(create).get(get_all))
-        .route("/@{username}", get(get_by_username))
-        .route("/{id}", get(get_by_id).delete(delete_by_id))
+        .route("/users", post(create).get(get_all))
+        .route("/users/@{username}", get(get_by_username))
+        .route("/users/{id}", get(get_by_id).delete(delete_by_id))
 }

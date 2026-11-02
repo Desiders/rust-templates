@@ -1,8 +1,8 @@
 use axum::{http::StatusCode, response::IntoResponse};
 use tracing::instrument;
 
-use super::responses::base::Resp;
 use crate::api::errors::PathNotFound;
+use crate::api::responses::Resp;
 
 /// 404 handler for unmatched paths. Returns the standard error envelope.
 #[instrument(skip_all)]

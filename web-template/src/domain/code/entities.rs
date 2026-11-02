@@ -9,6 +9,13 @@ use std::{
     borrow::Cow,
     fmt::{self, Display, Formatter},
 };
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ValidationDetail {
+    pub field: String,
+    pub reason: String,
+}
 
 #[derive(Debug, Serialize)]
 pub struct Code {
@@ -16,6 +23,8 @@ pub struct Code {
     pub code: u16,
     pub name: &'static str,
     pub message: Cow<'static, str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub validation: Option<ValidationDetail>,
 }
 
 impl Display for Code {

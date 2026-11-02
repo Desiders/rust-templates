@@ -7,6 +7,7 @@ use crate::{
     application::{
         common::{entities::Pagination, interactor::Interactor},
         db::tx_manager::TxManager,
+        user::dtos::CreateUser,
     },
     domain::{
         common::errors::ErrKind,
@@ -72,12 +73,13 @@ pub struct GetUsersInput {
     pub pagination: Pagination,
 }
 
-impl Interactor<User> for &AddUser {
+impl Interactor<CreateUser> for AddUser {
     type Output = User;
     type Err = ErrKind<UserAlreadyExists>;
 
     #[instrument(skip_all)]
-    async fn execute(self, user: User) -> Result<Self::Output, Self::Err> {
+    async fn execute(self, input: CreateUser) -> Result<Self::Output, Self::Err> {
+        let user = User::new(input.id, input.username);
         let tx_manager = self.tx_manager.begin().await?;
 
         let user = match {
@@ -98,7 +100,7 @@ impl Interactor<User> for &AddUser {
     }
 }
 
-impl Interactor<Uuid> for &GetUserById {
+impl Interactor<Uuid> for GetUserById {
     type Output = User;
     type Err = ErrKind<UserByIdNotFound>;
 
@@ -112,7 +114,7 @@ impl Interactor<Uuid> for &GetUserById {
     }
 }
 
-impl Interactor<String> for &GetUserByUsername {
+impl Interactor<String> for GetUserByUsername {
     type Output = User;
     type Err = ErrKind<UserByUsernameNotFound>;
 
@@ -126,7 +128,7 @@ impl Interactor<String> for &GetUserByUsername {
     }
 }
 
-impl Interactor<GetUsersInput> for &GetUsers {
+impl Interactor<GetUsersInput> for GetUsers {
     type Output = Vec<User>;
     type Err = ErrKind<Infallible>;
 
@@ -143,7 +145,7 @@ impl Interactor<GetUsersInput> for &GetUsers {
     }
 }
 
-impl Interactor<Uuid> for &DeleteUserById {
+impl Interactor<Uuid> for DeleteUserById {
     type Output = ();
     type Err = ErrKind<UserByIdNotFound>;
 

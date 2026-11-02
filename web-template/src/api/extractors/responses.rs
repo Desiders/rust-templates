@@ -3,7 +3,7 @@
 //!
 //! Use these in controllers instead of `axum::Json`, `axum::extract::Path`,
 //! and `axum::extract::Query` when rejection errors should be returned as
-//! `ErrResponse` through `Resp::Err`.
+//! `ErrResponse` through `Resp::err`.
 
 use axum::{
     extract::{
@@ -13,9 +13,9 @@ use axum::{
     http::request::Parts,
     response::{IntoResponse as _, Response},
 };
-use serde::de::DeserializeOwned;
+use axum_extra::extract::QueryRejection;
 
-use crate::api::{controllers::responses::base::Resp, errors};
+use crate::api::{errors, responses::Resp};
 
 pub struct Json<T>(pub T);
 pub struct Path<T>(pub T);
@@ -53,14 +53,14 @@ where
 
 impl<S, T> FromRequestParts<S> for Query<T>
 where
-    T: DeserializeOwned,
+    axum_extra::extract::Query<T>: FromRequestParts<S, Rejection = QueryRejection>,
     S: Send + Sync,
 {
     type Rejection = Response;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        match axum::extract::Query::<T>::from_request_parts(parts, state).await {
-            Ok(axum::extract::Query(value)) => Ok(Self(value)),
+        match axum_extra::extract::Query::<T>::from_request_parts(parts, state).await {
+            Ok(axum_extra::extract::Query(value)) => Ok(Self(value)),
             Err(err) => Err((err.status(), Resp::err(errors::QueryRejection(err))).into_response()),
         }
     }

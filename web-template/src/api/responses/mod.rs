@@ -10,7 +10,7 @@ use serde::Serialize;
 use serializer::{JsonSerializer, Serializer};
 use std::{borrow::Cow, marker::PhantomData};
 use utoipa::{
-    ToSchema,
+    PartialSchema, ToSchema,
     openapi::{
         RefOr, Schema,
         schema::{Object, ObjectBuilder, Type},
@@ -18,11 +18,11 @@ use utoipa::{
 };
 
 use crate::domain::code::{
-    entities::Code,
+    entities::{Code, ValidationDetail},
     interfaces::{CodeEntity, IntoCode},
 };
 
-/// Controller return type that can represent either a successful payload or an
+/// Response builder that can represent either a successful payload or an
 /// error that can be converted into an API code.
 pub enum Resp {}
 
@@ -85,6 +85,8 @@ pub struct ErrResponse<E> {
     code: u16,
     name: &'static str,
     message: Cow<'static, str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    validation: Option<ValidationDetail>,
     #[serde(skip)]
     _kind: PhantomData<fn() -> E>,
 }
@@ -95,11 +97,13 @@ impl<E: IntoCode> From<E> for ErrResponse<E> {
             code,
             name,
             message,
+            validation,
         } = err.into_code();
         Self {
             code,
             name,
             message,
+            validation,
             is_success: false,
             _kind: PhantomData,
         }
@@ -108,7 +112,7 @@ impl<E: IntoCode> From<E> for ErrResponse<E> {
 
 impl<E: CodeEntity> utoipa::__dev::ComposeSchema for ErrResponse<E> {
     fn compose(_generics: Vec<RefOr<Schema>>) -> RefOr<Schema> {
-        ObjectBuilder::new()
+        let schema = ObjectBuilder::new()
             .description(Some(format!("Error response: {} ({})", E::NAME, E::CODE)))
             .property(
                 "is_success",
@@ -140,8 +144,14 @@ impl<E: CodeEntity> utoipa::__dev::ComposeSchema for ErrResponse<E> {
                     .schema_type(Type::String)
                     .description(Some("Human-readable error message")),
             )
-            .required("message")
-            .into()
+            .required("message");
+        if E::HAS_VALIDATION {
+            schema
+                .property("validation", ValidationDetail::schema())
+                .into()
+        } else {
+            schema.into()
+        }
     }
 }
 

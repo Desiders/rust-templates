@@ -31,6 +31,7 @@ use crate::domain::{
 pub trait CodeEntity {
     const CODE: u16;
     const NAME: &'static str;
+    const HAS_VALIDATION: bool = false;
 }
 
 pub trait IntoCode {
@@ -73,6 +74,7 @@ macro_rules! code_entity {
                         code: <$name as CodeEntity>::CODE,
                         name: <$name as CodeEntity>::NAME,
                         message: self.to_string().into(),
+                        validation: None,
                     }
                 }
             }

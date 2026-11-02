@@ -6,7 +6,7 @@ use serde::Serialize;
 
 use super::{ErrResponse, OkResponse};
 
-/// Converts typed API response structures into axum responses.
+/// Converts typed API response structures into Axum responses.
 ///
 /// This keeps `Resp` independent from a concrete wire format. Controllers can
 /// keep returning `Resp`, while serializers decide whether the response is
