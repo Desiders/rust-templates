@@ -36,11 +36,7 @@ async fn main() {
 
     let bot = Bot::new(cfg.bot.token.expose_secret());
 
-    let cfg_registry = di::cfg_registry(cfg);
-    let db_registry = di::db_registry(cfg_registry);
-    let tx_manager_registry = di::tx_manager_registry(db_registry);
-    let interactors_registry = di::interactors_registry(tx_manager_registry);
-    let container = di::init(interactors_registry);
+    let container = di::init(cfg);
 
     let router = froodi::telers::setup_async_default(Router::new("main"), container.clone())
         .on_update(|observer| observer.register_outer_middleware(middlewares::CreateUser))

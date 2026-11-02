@@ -1,6 +1,7 @@
 use tracing::{info, instrument};
 
 use std::convert::Infallible;
+use std::sync::Arc;
 
 use crate::{
     application::{
@@ -18,51 +19,51 @@ use crate::{
 use uuid::Uuid;
 
 pub struct AddUser {
-    tx_manager: Box<dyn TxManager>,
+    tx_manager: Arc<Box<dyn TxManager>>,
 }
 
 pub struct GetUserById {
-    tx_manager: Box<dyn TxManager>,
+    tx_manager: Arc<Box<dyn TxManager>>,
 }
 
 pub struct GetUserByUsername {
-    tx_manager: Box<dyn TxManager>,
+    tx_manager: Arc<Box<dyn TxManager>>,
 }
 
 pub struct GetUsers {
-    tx_manager: Box<dyn TxManager>,
+    tx_manager: Arc<Box<dyn TxManager>>,
 }
 
 pub struct DeleteUserById {
-    tx_manager: Box<dyn TxManager>,
+    tx_manager: Arc<Box<dyn TxManager>>,
 }
 
 impl AddUser {
-    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+    pub const fn new(tx_manager: Arc<Box<dyn TxManager>>) -> Self {
         Self { tx_manager }
     }
 }
 
 impl GetUserById {
-    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+    pub const fn new(tx_manager: Arc<Box<dyn TxManager>>) -> Self {
         Self { tx_manager }
     }
 }
 
 impl GetUserByUsername {
-    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+    pub const fn new(tx_manager: Arc<Box<dyn TxManager>>) -> Self {
         Self { tx_manager }
     }
 }
 
 impl GetUsers {
-    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+    pub const fn new(tx_manager: Arc<Box<dyn TxManager>>) -> Self {
         Self { tx_manager }
     }
 }
 
 impl DeleteUserById {
-    pub const fn new(tx_manager: Box<dyn TxManager>) -> Self {
+    pub const fn new(tx_manager: Arc<Box<dyn TxManager>>) -> Self {
         Self { tx_manager }
     }
 }

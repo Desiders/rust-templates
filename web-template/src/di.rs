@@ -1,123 +1,100 @@
-use froodi::{
-    DefaultScope::{App, Request},
-    Inject, InjectTransient, InstantiateErrorKind, Registry,
-    async_impl::{Container, RegistryWithSync},
-    async_registry, boxed, instance, registry,
-};
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
-use std::sync::Arc;
-use tracing::{debug, error, info};
+use froodi::async_impl::{Container, TypedContainer, TypedContainerExt as _};
+use froodi::{ResolveErrorKind, fragment, registry};
+use sea_orm::DatabaseConnection;
 
-use crate::{
-    application::{db::tx_manager::TxManager, user},
-    config::{self, Config},
-    infra::db::tx_manager::{
+use crate::config::Config;
+
+#[fragment(pub configuration(cfg))]
+registry! {
+    use froodi::{DefaultScope::App, instance};
+
+    provide(App, instance(cfg.database)),
+}
+
+#[fragment(pub database)]
+registry! {
+    use std::sync::Arc;
+
+    use froodi::{DefaultScope::App, Inject, InstantiateErrorKind};
+    use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+    use tracing::{debug, error, info};
+
+    use crate::config;
+
+    provide(
+        App,
+        |Inject(cfg): Inject<config::Database>| async move {
+            let mut options = ConnectOptions::new(cfg.get_postgres_url());
+            options.sqlx_logging(false);
+            debug!("Creating database connection pool");
+            match Database::connect(options).await {
+                Ok(conn) => {
+                    info!("Database connection pool created");
+                    Ok(conn)
+                }
+                Err(err) => {
+                    error!(%err, "Create database connection error");
+                    Err(InstantiateErrorKind::Custom(err.into()))
+                }
+            }
+        },
+        finalizer = |conn: Arc<DatabaseConnection>| async move {
+            match conn.close_by_ref().await {
+                Ok(()) => info!("Database connection pool closed"),
+                Err(err) => error!(%err, "Close database connection error"),
+            }
+        },
+    ),
+}
+
+#[fragment(pub transactions)]
+registry! {
+    use froodi::{DefaultScope::App, Inject, boxed};
+
+    use crate::application::db::tx_manager::TxManager;
+    use crate::infra::db::tx_manager::{
         SeaOrmTxManager,
         factories::{DefaultUserReaderFactory, DefaultUserRepoFactory, TxManagerFactories},
-    },
-};
-
-pub(super) fn cfg_registry(cfg: Config) -> Registry {
-    registry! {
-        scope(App) [
-            provide(instance(cfg.database)),
-        ]
-    }
-}
-
-pub(super) fn db_registry(cfg: Registry) -> RegistryWithSync {
-    async_registry! {
-        provide(
-            App,
-            |Inject(cfg): Inject<config::Database>| async move {
-                let mut options = ConnectOptions::new(cfg.get_postgres_url());
-                options.sqlx_logging(false);
-
-                debug!("Creating database conn");
-                match Database::connect(options).await {
-                    Ok(database_conn) => {
-                        info!("Database conn created");
-                        Ok(database_conn)
-                    }
-                    Err(err) => {
-                        error!(%err, "Create database conn error");
-                        Err(InstantiateErrorKind::Custom(err.into()))
-                    }
-                }
-            },
-            finalizer = |conn: Arc<DatabaseConnection>| async move {
-                match conn.close_by_ref().await {
-                    Ok(()) => {
-                        info!("Database conn closed");
-                    },
-                    Err(err) => {
-                        error!(%err, "Close database conn error");
-                    },
-                }
-            },
-        ),
-        extend(cfg),
-    }
-}
-
-pub(super) fn tx_manager_registry(db: RegistryWithSync) -> RegistryWithSync {
-    let factories = registry! {
-        scope(App) [
-            provide(|| {
-                let user_reader = Box::new(DefaultUserReaderFactory);
-                let user_repo = Box::new(DefaultUserRepoFactory);
-                Ok(TxManagerFactories::new(user_reader, user_repo))
-            }),
-        ]
     };
-    async_registry! {
-        provide(
-            Request,
-            |Inject(pool): Inject<DatabaseConnection>,
-             Inject(factories): Inject<TxManagerFactories>| async move {
-                Ok(boxed!(SeaOrmTxManager::new(pool, factories); TxManager))
-            }
-        ),
-        extend(db, factories),
-    }
+
+    scope(App) [
+        provide(|| Ok(TxManagerFactories::new(
+            Box::new(DefaultUserReaderFactory), Box::new(DefaultUserRepoFactory),
+        ))),
+        provide(|Inject(pool), Inject(factories)| async move {
+            Ok(boxed!(SeaOrmTxManager::new(pool, factories); TxManager))
+        }),
+    ],
 }
 
-pub(super) fn interactors_registry(tx_manager: RegistryWithSync) -> RegistryWithSync {
-    async_registry! {
-        scope(Request) [
-            provide(
-                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
-                    Ok(user::interactors::AddUser::new(tx_manager))
-                }
-            ),
-            provide(
-                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
-                    Ok(user::interactors::GetUserById::new(tx_manager))
-                }
-            ),
-            provide(
-                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
-                    Ok(user::interactors::GetUserByUsername::new(tx_manager))
-                }
-            ),
-            provide(
-                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
-                    Ok(user::interactors::GetUsers::new(tx_manager))
-                }
-            ),
-            provide(
-                |InjectTransient(tx_manager): InjectTransient<Box<dyn TxManager>>| async move {
-                    Ok(user::interactors::DeleteUserById::new(tx_manager))
-                }
-            ),
-        ],
-        extend(tx_manager),
-    }
-}
+#[fragment(pub interactors)]
+registry! {
+    use froodi::{DefaultScope::Request, Inject};
 
-pub(super) fn init(interactors: RegistryWithSync) -> Container {
-    let registry = async_registry! {
-        extend(interactors),
+    use crate::application::user::interactors::{
+        AddUser, DeleteUserById, GetUserById, GetUserByUsername, GetUsers,
     };
-    Container::new(registry)
+
+    scope(Request) [
+        provide(|Inject(tx)| async move { Ok(AddUser::new(tx)) }),
+        provide(|Inject(tx)| async move { Ok(GetUserById::new(tx)) }),
+        provide(|Inject(tx)| async move { Ok(GetUserByUsername::new(tx)) }),
+        provide(|Inject(tx)| async move { Ok(GetUsers::new(tx)) }),
+        provide(|Inject(tx)| async move { Ok(DeleteUserById::new(tx)) }),
+    ],
+}
+
+/// Resolve the database before accepting requests, closing resources on failure.
+///
+/// # Errors
+/// Returns an error if the database connection cannot be created.
+pub async fn init(cfg: Config) -> Result<Container, ResolveErrorKind> {
+    let container = TypedContainer::new(registry! {
+        extend_fragment(configuration!(cfg), database!(), transactions!(), interactors!()),
+    });
+    if let Err(err) = container.get::<DatabaseConnection>().await {
+        container.close().await;
+        return Err(err);
+    }
+    Ok(container.into_container())
 }
