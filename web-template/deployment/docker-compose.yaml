@@ -24,6 +24,23 @@ services:
     profiles:
       - default
       - dev
+      - migration
+
+  migrate:
+    image: "${MIGRATION_IMAGE:-web-template-migration}"
+    build:
+      context: ../..
+      dockerfile: web-template/migration/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:?error}:${POSTGRES_PASSWORD:?error}@web_template.postgres:5432/${POSTGRES_DB:?error}
+    command: ${MIGRATION_COMMAND:-up}
+    networks:
+      - postgres.network
+    profiles:
+      - migration
 
 volumes:
   postgres.data: {}

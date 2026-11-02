@@ -24,3 +24,6 @@ run mode:
 
 @docker-dev-up:
     docker compose -f deployment/docker-compose.yaml --env-file .env --profile dev up -d
+
+@docker-migrate action="up":
+    docker compose -f deployment/docker-compose.yaml --env-file .env --profile migration run --rm --build migrate {{action}}

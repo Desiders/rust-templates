@@ -14,12 +14,11 @@ cp configs/dev.template.toml configs/dev.toml
 ```
 
 Set matching database credentials in both files. Start PostgreSQL, apply
-migrations with your database connection URL, and run the API:
+migrations, and run the API:
 
 ```sh
 just docker-dev-up
-DATABASE_URL='postgres://USER:PASSWORD@127.0.0.1:5432/api' \
-  cargo run --locked -p web_template_migration -- up
+just docker-migrate up
 just run-dev
 ```
 
