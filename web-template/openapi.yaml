@@ -1,0 +1,654 @@
+openapi: 3.1.0
+info:
+  title: API
+  description: ''
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /api/v1/users:
+    get:
+      tags:
+      - users
+      operationId: list_users
+      parameters:
+      - name: after_id
+        in: query
+        description: Exclusive cursor. Results start after this UUID in the selected order.
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        description: Maximum number of items to return. Defaults to 50 and is capped at 100.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 50
+          maximum: 100
+          minimum: 0
+      - name: order
+        in: query
+        description: Sort order. Defaults to ascending.
+        required: false
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+      responses:
+        '200':
+          description: Users received successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse_Vec_User'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_QueryRejection'
+        '500':
+          description: Unexpected error occurred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_Unexpected'
+    post:
+      tags:
+      - users
+      operationId: create_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+        required: true
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse_User'
+        '400':
+          description: Malformed JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_JsonRejection'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_UserAlreadyExists'
+        '413':
+          description: Request body exceeds the limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_JsonRejection'
+        '415':
+          description: Content-Type must be application/json
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_JsonRejection'
+        '422':
+          description: Invalid username or request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserValidationResponse'
+        '500':
+          description: Unexpected error occurred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_Unexpected'
+  /api/v1/users/@{username}:
+    get:
+      tags:
+      - users
+      operationId: get_user_by_username
+      parameters:
+      - name: username
+        in: path
+        description: Username
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: User received successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse_User'
+        '400':
+          description: Invalid path parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_PathRejection'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_UserByUsernameNotFound'
+        '500':
+          description: Unexpected error occurred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_Unexpected'
+  /api/v1/users/{id}:
+    get:
+      tags:
+      - users
+      operationId: get_user
+      parameters:
+      - name: id
+        in: path
+        description: User UUID v7
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: User received successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse_User'
+        '400':
+          description: Invalid path parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_PathRejection'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_UserByIdNotFound'
+        '500':
+          description: Unexpected error occurred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_Unexpected'
+    delete:
+      tags:
+      - users
+      operationId: delete_user
+      parameters:
+      - name: id
+        in: path
+        description: User UUID v7
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: User deleted successfully
+        '400':
+          description: Invalid path parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_PathRejection'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_UserByIdNotFound'
+        '500':
+          description: Unexpected error occurred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResponse_Unexpected'
+  /ping:
+    get:
+      tags:
+      - health
+      operationId: ping
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse_str'
+  /status:
+    get:
+      tags:
+      - health
+      operationId: status
+      responses:
+        '200':
+          description: Process is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse_Status'
+components:
+  schemas:
+    CreateUser:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type:
+          - string
+          - 'null'
+          maxLength: 32
+          minLength: 5
+          pattern: ^[a-z0-9_]+$
+    ErrResponse_InvalidUsername:
+      type: object
+      description: 'Error response: InvalidUsername (1008)'
+      required:
+      - is_success
+      - code
+      - name
+      - message
+      properties:
+        code:
+          type: integer
+          enum:
+          - 1008
+          examples:
+          - 1008
+        is_success:
+          type: boolean
+          enum:
+          - false
+          examples:
+          - false
+        message:
+          type: string
+          description: Human-readable error message
+        name:
+          type: string
+          enum:
+          - InvalidUsername
+          examples:
+          - InvalidUsername
+    ErrResponse_JsonRejection:
+      type: object
+      description: 'Error response: JsonRejection (1001)'
+      required:
+      - is_success
+      - code
+      - name
+      - message
+      properties:
+        code:
+          type: integer
+          enum:
+          - 1001
+          examples:
+          - 1001
+        is_success:
+          type: boolean
+          enum:
+          - false
+          examples:
+          - false
+        message:
+          type: string
+          description: Human-readable error message
+        name:
+          type: string
+          enum:
+          - JsonRejection
+          examples:
+          - JsonRejection
+    ErrResponse_PathRejection:
+      type: object
+      description: 'Error response: PathRejection (1002)'
+      required:
+      - is_success
+      - code
+      - name
+      - message
+      properties:
+        code:
+          type: integer
+          enum:
+          - 1002
+          examples:
+          - 1002
+        is_success:
+          type: boolean
+          enum:
+          - false
+          examples:
+          - false
+        message:
+          type: string
+          description: Human-readable error message
+        name:
+          type: string
+          enum:
+          - PathRejection
+          examples:
+          - PathRejection
+    ErrResponse_QueryRejection:
+      type: object
+      description: 'Error response: QueryRejection (1003)'
+      required:
+      - is_success
+      - code
+      - name
+      - message
+      properties:
+        code:
+          type: integer
+          enum:
+          - 1003
+          examples:
+          - 1003
+        is_success:
+          type: boolean
+          enum:
+          - false
+          examples:
+          - false
+        message:
+          type: string
+          description: Human-readable error message
+        name:
+          type: string
+          enum:
+          - QueryRejection
+          examples:
+          - QueryRejection
+    ErrResponse_Unexpected:
+      type: object
+      description: 'Error response: Unexpected (1000)'
+      required:
+      - is_success
+      - code
+      - name
+      - message
+      properties:
+        code:
+          type: integer
+          enum:
+          - 1000
+          examples:
+          - 1000
+        is_success:
+          type: boolean
+          enum:
+          - false
+          examples:
+          - false
+        message:
+          type: string
+          description: Human-readable error message
+        name:
+          type: string
+          enum:
+          - Unexpected
+          examples:
+          - Unexpected
+    ErrResponse_UserAlreadyExists:
+      type: object
+      description: 'Error response: UserAlreadyExists (1004)'
+      required:
+      - is_success
+      - code
+      - name
+      - message
+      properties:
+        code:
+          type: integer
+          enum:
+          - 1004
+          examples:
+          - 1004
+        is_success:
+          type: boolean
+          enum:
+          - false
+          examples:
+          - false
+        message:
+          type: string
+          description: Human-readable error message
+        name:
+          type: string
+          enum:
+          - UserAlreadyExists
+          examples:
+          - UserAlreadyExists
+    ErrResponse_UserByIdNotFound:
+      type: object
+      description: 'Error response: UserByIdNotFound (1005)'
+      required:
+      - is_success
+      - code
+      - name
+      - message
+      properties:
+        code:
+          type: integer
+          enum:
+          - 1005
+          examples:
+          - 1005
+        is_success:
+          type: boolean
+          enum:
+          - false
+          examples:
+          - false
+        message:
+          type: string
+          description: Human-readable error message
+        name:
+          type: string
+          enum:
+          - UserByIdNotFound
+          examples:
+          - UserByIdNotFound
+    ErrResponse_UserByUsernameNotFound:
+      type: object
+      description: 'Error response: UserByUsernameNotFound (1006)'
+      required:
+      - is_success
+      - code
+      - name
+      - message
+      properties:
+        code:
+          type: integer
+          enum:
+          - 1006
+          examples:
+          - 1006
+        is_success:
+          type: boolean
+          enum:
+          - false
+          examples:
+          - false
+        message:
+          type: string
+          description: Human-readable error message
+        name:
+          type: string
+          enum:
+          - UserByUsernameNotFound
+          examples:
+          - UserByUsernameNotFound
+    JsonRejection:
+      type: object
+    OkResponse_Status:
+      type: object
+      description: Successful JSON response structure
+      required:
+      - is_success
+      - result
+      properties:
+        is_success:
+          type: boolean
+          enum:
+          - true
+          examples:
+          - true
+        result:
+          type: object
+          required:
+          - status
+          properties:
+            status:
+              type: string
+    OkResponse_User:
+      type: object
+      description: Successful JSON response structure
+      required:
+      - is_success
+      - result
+      properties:
+        is_success:
+          type: boolean
+          enum:
+          - true
+          examples:
+          - true
+        result:
+          type: object
+          required:
+          - id
+          - created_at
+          - updated_at
+          properties:
+            created_at:
+              type: string
+              format: date-time
+            id:
+              type: string
+              format: uuid
+            updated_at:
+              type: string
+              format: date-time
+            username:
+              type:
+              - string
+              - 'null'
+    OkResponse_Vec_User:
+      type: object
+      description: Successful JSON response structure
+      required:
+      - is_success
+      - result
+      properties:
+        is_success:
+          type: boolean
+          enum:
+          - true
+          examples:
+          - true
+        result:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - created_at
+            - updated_at
+            properties:
+              created_at:
+                type: string
+                format: date-time
+              id:
+                type: string
+                format: uuid
+              updated_at:
+                type: string
+                format: date-time
+              username:
+                type:
+                - string
+                - 'null'
+    OkResponse_str:
+      type: object
+      description: Successful JSON response structure
+      required:
+      - is_success
+      - result
+      properties:
+        is_success:
+          type: boolean
+          enum:
+          - true
+          examples:
+          - true
+        result:
+          type: string
+    PathRejection:
+      type: object
+    QueryRejection:
+      type: object
+    Status:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+    Unexpected:
+      type: object
+    User:
+      type: object
+      required:
+      - id
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: date-time
+        username:
+          type:
+          - string
+          - 'null'
+    UserAlreadyExists:
+      type: object
+    UserByIdNotFound:
+      type: object
+    UserByUsernameNotFound:
+      type: object
+    UserValidationResponse:
+      oneOf:
+      - $ref: '#/components/schemas/ErrResponse_InvalidUsername'
+      - $ref: '#/components/schemas/ErrResponse_JsonRejection'
+tags:
+- name: health
+  description: Process liveness
+- name: users
+  description: User example
