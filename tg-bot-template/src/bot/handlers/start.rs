@@ -14,7 +14,9 @@ pub async fn start(bot: Bot, message: Message) -> HandlerResult {
             "Hello. This template is ready for Telegram bot use-cases.",
         )
         .reply_parameters(
-            ReplyParameters::new(message.message_id()).allow_sending_without_reply(true),
+            ReplyParameters::new()
+                .message_id(message.message_id())
+                .allow_sending_without_reply(true),
         ),
     )
     .await?;

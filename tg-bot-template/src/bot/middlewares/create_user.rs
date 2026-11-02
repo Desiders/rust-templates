@@ -1,9 +1,8 @@
 use froodi::async_impl::Container;
 use telers::{
     Request,
-    errors::{EventErrorKind, MiddlewareError},
-    event::EventReturn,
-    middlewares::outer::{Middleware, MiddlewareResponse},
+    errors::MiddlewareError,
+    middlewares::outer::{Middleware, MiddlewareResult, Next},
 };
 use tracing::{error, instrument};
 
@@ -15,24 +14,24 @@ pub struct CreateUser;
 
 impl Middleware for CreateUser {
     #[instrument(skip_all)]
-    async fn call(&mut self, request: Request) -> Result<MiddlewareResponse, EventErrorKind> {
+    async fn call(&mut self, request: Request, next: Next) -> MiddlewareResult {
         let Some(from) = request.update.from() else {
-            return Ok((request, EventReturn::Finish));
+            return next(request).await;
         };
         let Some(container) = request.extensions.get::<Container>() else {
-            return Ok((request, EventReturn::Finish));
+            return next(request).await;
         };
 
-        let save_user = container
-            .get_transient::<SaveUser>()
-            .await
-            .map_err(MiddlewareError::new)?;
+        let save_user = match container.get_transient::<SaveUser>().await {
+            Ok(interactor) => interactor,
+            Err(err) => return Err((MiddlewareError::new(err).into(), request)),
+        };
         let user = User::new(from.id, from.username.as_ref().map(ToString::to_string));
 
         if let Err(err) = save_user.execute(user).await {
             error!(%err, "Save user error");
         }
 
-        Ok((request, EventReturn::Finish))
+        next(request).await
     }
 }

@@ -7,10 +7,13 @@ edition = "2024"
 anyhow = "1.0"
 async-trait = "0.1"
 axum = "0.8"
-froodi = { version = "1.0.0-beta.17", features = ["async", "thread_safe", "axum"] }
+axum-extra = { version = "0.10", default-features = false, features = ["query"] }
+clap = { version = "4", features = ["derive"] }
+froodi = { version = "=1.0.0-beta.20", features = ["async", "thread_safe", "axum"] }
 sea-orm = { version = "2.0.0", features = ["macros", "sqlx-postgres", "runtime-tokio-rustls", "with-time", "with-uuid"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
 thiserror = "2.0"
 time = { version = "0.3", features = ["serde-human-readable"] }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "signal"] }
