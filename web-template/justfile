@@ -2,19 +2,25 @@ help:
     just -l
 
 fmt:
-    cargo +nightly fmt --all
+    cargo +nightly-2026-09-30 fmt --all
 
 lint:
-    cargo clippy --all-features -- -W clippy::pedantic
+    cargo clippy --locked -p web_template --all-targets --all-features -- -W clippy::pedantic
 
-run:
-    cargo build --bin web_template && cargo run --bin web_template
+run mode:
+    cargo run --locked --bin web_template -- {{mode}}
+
+@openapi:
+    cargo run --locked --bin web_template -- openapi-dump
+
+@openapi-check:
+    cargo run --locked --bin web_template -- openapi-check
 
 @run-dev:
-    CONFIG_PATH='configs/dev.toml' just run
+    CONFIG_PATH='configs/dev.toml' just run api
 
 @run-prod:
-    CONFIG_PATH='configs/prod.toml' just run
+    CONFIG_PATH='configs/prod.toml' just run api
 
 @docker-dev-up:
     docker compose -f deployment/docker-compose.yaml --env-file .env --profile dev up -d
