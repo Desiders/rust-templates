@@ -3,6 +3,7 @@ use time::OffsetDateTime;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use super::errors::InvalidUsername;
 use crate::infra::db::models::users;
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -18,6 +19,18 @@ pub struct User {
 }
 
 impl User {
+    pub fn validate_username(username: &str) -> Result<(), InvalidUsername> {
+        let len = username.chars().count();
+        let charset_ok = username
+            .chars()
+            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_');
+        if (5..=32).contains(&len) && charset_ok {
+            Ok(())
+        } else {
+            Err(InvalidUsername)
+        }
+    }
+
     pub fn new(id: Uuid, username: Option<String>) -> Self {
         Self {
             id,

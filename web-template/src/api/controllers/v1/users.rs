@@ -6,7 +6,7 @@ use axum::{
 };
 use froodi::InjectTransient;
 use tracing::{error, instrument};
-use utoipa::OpenApi;
+use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
 use crate::api::responses::{ErrResponse, OkResponse, Resp};
@@ -29,10 +29,21 @@ use crate::{
         common::errors::ErrKind,
         user::{
             entities::User,
-            errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
+            errors::{
+                CreateUserError, InvalidUsername, UserAlreadyExists, UserByIdNotFound,
+                UserByUsernameNotFound,
+            },
         },
     },
 };
+
+#[derive(ToSchema)]
+#[serde(untagged)]
+#[allow(dead_code)]
+enum UserValidationResponse {
+    Username(ErrResponse<InvalidUsername>),
+    Json(ErrResponse<JsonRejection>),
+}
 
 #[utoipa::path(post, path = "/users",
     operation_id = "create_user",
@@ -42,7 +53,7 @@ use crate::{
         (status = StatusCode::BAD_REQUEST, body = ErrResponse<JsonRejection>, description = "Malformed JSON"),
         (status = StatusCode::PAYLOAD_TOO_LARGE, body = ErrResponse<JsonRejection>, description = "Request body exceeds the limit"),
         (status = StatusCode::UNSUPPORTED_MEDIA_TYPE, body = ErrResponse<JsonRejection>, description = "Content-Type must be application/json"),
-        (status = StatusCode::UNPROCESSABLE_ENTITY, body = ErrResponse<JsonRejection>, description = "JSON does not match the request type"),
+        (status = StatusCode::UNPROCESSABLE_ENTITY, body = UserValidationResponse, description = "Invalid username or request body"),
         (status = StatusCode::CONFLICT, body = ErrResponse<UserAlreadyExists>, description = "User already exists"),
         (status = StatusCode::INTERNAL_SERVER_ERROR, body = ErrResponse<Unexpected>, description = "Unexpected error occurred"),
     ),
@@ -57,7 +68,10 @@ async fn create(
         Err(err) => {
             error!(%err, "Add user error");
             let status_code = match &err {
-                ErrKind::Expected(_) => StatusCode::CONFLICT,
+                ErrKind::Expected(CreateUserError::UserAlreadyExists(_)) => StatusCode::CONFLICT,
+                ErrKind::Expected(CreateUserError::InvalidUsername(_)) => {
+                    StatusCode::UNPROCESSABLE_ENTITY
+                }
                 ErrKind::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
             };
             (status_code, Resp::err(err)).into_response()

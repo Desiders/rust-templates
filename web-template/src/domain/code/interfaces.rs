@@ -20,7 +20,10 @@ use super::entities::{Code, Unexpected};
 use crate::api::errors::{JsonRejection, PathNotFound, PathRejection, QueryRejection};
 use crate::domain::{
     common::errors::ErrKind,
-    user::errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
+    user::errors::{
+        CreateUserError, InvalidUsername, UserAlreadyExists, UserByIdNotFound,
+        UserByUsernameNotFound,
+    },
 };
 
 /// Compile-time half of the error-code registry.
@@ -57,6 +60,15 @@ impl<E: IntoCode> IntoCode for ErrKind<E> {
 impl IntoCode for anyhow::Error {
     fn into_code(&self) -> Code {
         Unexpected.into_code()
+    }
+}
+
+impl IntoCode for CreateUserError {
+    fn into_code(&self) -> Code {
+        match self {
+            Self::InvalidUsername(err) => err.into_code(),
+            Self::UserAlreadyExists(err) => err.into_code(),
+        }
     }
 }
 
@@ -103,4 +115,5 @@ code_entity! {
     UserByIdNotFound => 1005,
     UserByUsernameNotFound => 1006,
     PathNotFound => 1007,
+    InvalidUsername => 1008,
 }

@@ -18,3 +18,15 @@ pub struct UserByIdNotFound {
 pub struct UserByUsernameNotFound {
     pub username: String,
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("Username must be 5-32 characters of [a-z0-9_]")]
+pub struct InvalidUsername;
+
+#[derive(Debug, thiserror::Error)]
+pub enum CreateUserError {
+    #[error(transparent)]
+    InvalidUsername(#[from] InvalidUsername),
+    #[error(transparent)]
+    UserAlreadyExists(#[from] UserAlreadyExists),
+}

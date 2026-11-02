@@ -13,7 +13,7 @@ use crate::{
         common::errors::ErrKind,
         user::{
             entities::User,
-            errors::{UserAlreadyExists, UserByIdNotFound, UserByUsernameNotFound},
+            errors::{CreateUserError, UserByIdNotFound, UserByUsernameNotFound},
         },
     },
 };
@@ -75,10 +75,13 @@ pub struct GetUsersInput {
 
 impl Interactor<CreateUser> for AddUser {
     type Output = User;
-    type Err = ErrKind<UserAlreadyExists>;
+    type Err = ErrKind<CreateUserError>;
 
     #[instrument(skip_all)]
     async fn execute(self, input: CreateUser) -> Result<Self::Output, Self::Err> {
+        if let Some(username) = &input.username {
+            User::validate_username(username).map_err(|err| ErrKind::Expected(err.into()))?;
+        }
         let user = User::new(input.id, input.username);
         let tx_manager = self.tx_manager.begin().await?;
 
@@ -89,7 +92,7 @@ impl Interactor<CreateUser> for AddUser {
             Ok(user) => user,
             Err(err) => {
                 tx_manager.rollback().await?;
-                return Err(err);
+                return Err(err.map_expected(Into::into));
             }
         };
 
